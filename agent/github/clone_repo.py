@@ -1,6 +1,7 @@
 from git import Repo
 import os
 
+
 def clone_repo(repo_url):
     repo_name = repo_url.split("/")[-1].replace(".git", "")
     path = os.path.join("repos", repo_name)
@@ -12,5 +13,6 @@ def clone_repo(repo_url):
         print(f"{repo_name} already exists")
 
     return path
+
 
 clone_repo("https://github.com/langchain-ai/langchain.git")

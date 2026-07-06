@@ -1,0 +1,6 @@
+langgraph
+fastapi 
+uvicorn 
+requests 
+PyGithub
+gitpython

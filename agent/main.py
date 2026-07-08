@@ -2,11 +2,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List
 
-from repos.repo_info import repo_info
+from git_utils.repo_info import repo_info
 from git_utils.clone_repo import clone_or_update_repo
 from git_utils.repo_scanner import scan_repository
 from git_utils.file_selector import extract_keywords, select_relevant_files
 from agents.issue_analyzer import analyze_issue
+from git_utils.issue_details import get_issue_details
 
 app = FastAPI()
 
@@ -23,6 +24,10 @@ class AnalyzeIssueRequest(BaseModel):
     labels: List[str] = Field(default_factory=list)
     comments: List[str] = Field(default_factory=list)
 
+class IssueDetailsRequest(BaseModel):
+    owner: str
+    repo: str
+    issue_number: int
 
 @app.get("/")
 def home():
@@ -33,6 +38,17 @@ def home():
 def get_repo_info(payload: RepoURL):
     try:
         return repo_info(payload.model_dump())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@app.post("/issue-details")
+def issue_details(payload: IssueDetailsRequest):
+    try:
+        return get_issue_details(
+            owner=payload.owner,
+            repo=payload.repo,
+            issue_number=payload.issue_number
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

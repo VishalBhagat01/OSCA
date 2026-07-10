@@ -87,9 +87,12 @@ def collect_context(data: AnalyzeIssueRequest):
     }
 
     # 7. Analyze issue + codebase together
-    analysis = analyze_issue(
+    agent_result = analyze_issue(
         issue=issue_data,
-        codebase=codebase_data
+        codebase={
+            **codebase_data,
+            "repo_path": repo_path
+        }
     )
 
     # Do not return complete file contents yet.
@@ -105,13 +108,21 @@ def collect_context(data: AnalyzeIssueRequest):
             }
             for file in relevant_files
         ],
-        "analysis": analysis
-    }
+        "analysis": agent_result["analysis"],
+        "proposed_patch": agent_result["proposed_patch"]
+}
 
 
 @app.post("/analyze-issue")
 def analyze_selected_issue(data: AnalyzeIssueRequest):
     try:
         return collect_context(data)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as error:
+        import traceback
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )

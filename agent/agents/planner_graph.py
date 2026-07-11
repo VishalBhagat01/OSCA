@@ -8,31 +8,38 @@ from agents.nodes.patch_applier import patch_applier_node
 from agents.nodes.test_runner import test_runner_node
 
 
-def route_after_validation(state: AgentState) -> str:
-    if state.get("validation_passed"):
+def retries_exhausted(state: AgentState) -> bool:
+    return (
+        state.get("retry_count", 0)
+        >= state.get("max_retries", 3)
+    )
+
+
+def route_after_validation(state: AgentState):
+    if state.get("validation_passed", False):
         return "patch_applier"
 
-    if state.get("retry_count", 0) >= state.get("max_retries", 3):
+    if retries_exhausted(state):
         return END
 
     return "patch_generator"
 
 
-def route_after_patch_apply(state: AgentState) -> str:
-    if state.get("patch_applied"):
+def route_after_patch_apply(state: AgentState):
+    if state.get("patch_applied", False):
         return "test_runner"
 
-    if state.get("retry_count", 0) >= state.get("max_retries", 3):
+    if retries_exhausted(state):
         return END
 
     return "patch_generator"
 
 
-def route_after_tests(state: AgentState) -> str:
-    if state.get("tests_passed"):
+def route_after_tests(state: AgentState):
+    if state.get("tests_passed", False):
         return END
 
-    if state.get("retry_count", 0) >= state.get("max_retries", 3):
+    if retries_exhausted(state):
         return END
 
     return "patch_generator"
@@ -49,8 +56,15 @@ def create_planner_graph():
 
     graph.set_entry_point("planner")
 
-    graph.add_edge("planner", "patch_generator")
-    graph.add_edge("patch_generator", "validator")
+    graph.add_edge(
+        "planner",
+        "patch_generator"
+    )
+
+    graph.add_edge(
+        "patch_generator",
+        "validator"
+    )
 
     graph.add_conditional_edges(
         "validator",
@@ -58,8 +72,8 @@ def create_planner_graph():
         {
             "patch_generator": "patch_generator",
             "patch_applier": "patch_applier",
-            END: END,
-        },
+            END: END
+        }
     )
 
     graph.add_conditional_edges(
@@ -68,8 +82,8 @@ def create_planner_graph():
         {
             "patch_generator": "patch_generator",
             "test_runner": "test_runner",
-            END: END,
-        },
+            END: END
+        }
     )
 
     graph.add_conditional_edges(
@@ -77,8 +91,8 @@ def create_planner_graph():
         route_after_tests,
         {
             "patch_generator": "patch_generator",
-            END: END,
-        },
+            END: END
+        }
     )
 
     return graph.compile()

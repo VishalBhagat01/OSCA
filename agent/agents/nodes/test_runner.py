@@ -1,7 +1,13 @@
 import subprocess
 
+from agents.nodes.state import AgentState
+from agents.utils.retry_trace import add_retry_trace
 
-def run_command(command: list[str], repo_path: str) -> dict:
+
+def run_command(
+    command: list[str],
+    repo_path: str
+) -> dict:
     result = subprocess.run(
         command,
         cwd=repo_path,
@@ -18,7 +24,7 @@ def run_command(command: list[str], repo_path: str) -> dict:
     }
 
 
-def test_runner_node(state: dict) -> dict:
+def test_runner_node(state: AgentState) -> dict:
     repo_path = state["repo_path"]
 
     try:
@@ -28,16 +34,21 @@ def test_runner_node(state: dict) -> dict:
         )
 
         if not result["success"]:
-            error_output = result["stderr"] or result["stdout"]
+            error_output = (
+                result["stderr"]
+                or result["stdout"]
+                or "Tests failed with no output."
+            )
 
             return {
                 **state,
                 "tests_passed": False,
                 "test_result": result,
-                "validation_passed": False,
-                "validation_error": (
-                    "Tests failed after applying the patch:\n"
-                    f"{error_output}"
+                "test_error": error_output,
+                "retry_trace": add_retry_trace(
+                    state,
+                    stage="tests",
+                    error=error_output
                 )
             }
 
@@ -45,24 +56,37 @@ def test_runner_node(state: dict) -> dict:
             **state,
             "tests_passed": True,
             "test_result": result,
-            "validation_error": None
+            "test_error": None,
+            "retry_trace": add_retry_trace(
+                state,
+                stage="success",
+                error=None
+            )
         }
 
     except subprocess.TimeoutExpired:
+        error = "Test execution timed out after 60 seconds."
+
         return {
             **state,
             "tests_passed": False,
             "test_result": {
                 "success": False,
                 "stdout": "",
-                "stderr": "Test execution timed out after 60 seconds.",
+                "stderr": error,
                 "return_code": None
             },
-            "validation_passed": False,
-            "validation_error": "Test execution timed out after 60 seconds."
+            "test_error": error,
+            "retry_trace": add_retry_trace(
+                state,
+                stage="tests",
+                error=error
+            )
         }
 
     except Exception as error:
+        error_message = f"Could not run tests: {error}"
+
         return {
             **state,
             "tests_passed": False,
@@ -72,6 +96,10 @@ def test_runner_node(state: dict) -> dict:
                 "stderr": str(error),
                 "return_code": None
             },
-            "validation_passed": False,
-            "validation_error": f"Could not run tests: {error}"
+            "test_error": error_message,
+            "retry_trace": add_retry_trace(
+                state,
+                stage="tests",
+                error=error_message
+            )
         }

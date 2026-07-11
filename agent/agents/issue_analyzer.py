@@ -17,11 +17,12 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
                 "title": issue.get("issue_title", ""),
                 "body": issue.get("issue_body", ""),
                 "labels": issue.get("labels", []),
-                "comments": issue.get("comments", []),
+                "comments": issue.get("comments", [])
             },
             "selected_files": selected_files,
             "retry_count": 0,
             "max_retries": 3,
+            "retry_trace": []
         }
     )
 
@@ -38,17 +39,32 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
             "reason": (
                 final_state.get("validation_error")
                 or final_state.get("patch_error")
-                or (
-                    None
-                    if patch_success
-                    else "Patch generation or validation did not complete."
-                )
+                or final_state.get("test_error")
             ),
             "diff": final_state.get("patch", ""),
-            "changed_files": final_state.get("changed_files", []),
-            "patch_applied": final_state.get("patch_applied", False),
-            "tests_passed": final_state.get("tests_passed", False),
-            "test_result": final_state.get("test_result", {}),
-            "retry_count": final_state.get("retry_count", 0),
-        },
+            "changed_files": final_state.get(
+                "changed_files",
+                []
+            ),
+            "patch_applied": final_state.get(
+                "patch_applied",
+                False
+            ),
+            "tests_passed": final_state.get(
+                "tests_passed",
+                False
+            ),
+            "test_result": final_state.get(
+                "test_result",
+                {}
+            ),
+            "retry_count": final_state.get(
+                "retry_count",
+                0
+            ),
+            "retry_trace": final_state.get(
+                "retry_trace",
+                []
+            )
+        }
     }

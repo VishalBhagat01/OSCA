@@ -1,6 +1,8 @@
 import re
 from typing import Any
 
+from agents.nodes.state import AgentState
+from agents.utils.retry_trace import add_retry_trace
 
 TEST_FILE_PATTERNS = [
     r"(^|/)test_.*\.py$",
@@ -103,8 +105,8 @@ def validate_patch(
     }
 
 
-def validation_node(state: dict) -> dict:
-    plan = state.get("plan", state.get("analysis", {}))
+def validation_node(state: AgentState) -> dict:
+    plan = state.get("plan", {})
 
     result = validate_patch(
         diff=state.get("patch", ""),
@@ -113,10 +115,17 @@ def validation_node(state: dict) -> dict:
     )
 
     if not result["valid"]:
+        error = result["error"]
+
         return {
             **state,
             "validation_passed": False,
-            "validation_error": result["error"],
+            "validation_error": error,
+            "retry_trace": add_retry_trace(
+                state,
+                stage="validation",
+                error=error,
+            ),
         }
 
     return {

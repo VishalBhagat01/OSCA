@@ -1,3 +1,4 @@
+import difflib
 import json
 
 from agents.nodes.state import AgentState
@@ -5,129 +6,185 @@ from agents.nodes.planner import extract_json
 from llm.ollama_client import llm
 
 
-def generate_patch(state: AgentState) -> dict:
-    plan = state.get("plan", state.get("analysis", {}))
+def generate_file_content(
+    state: AgentState,
+    file_data: dict,
+    feedback: str
+) -> str | None:
+    plan = state.get("plan", {})
 
-    relevant_files = [
-        {
-            "path": file["path"],
-            "content": file.get("content", "")[:4000],
-        }
-        for file in state.get("codebase", {}).get("relevant_files", [])[:6]
-    ]
-
-    allowed_files = state.get("selected_files", [])
-
-    previous_error = state.get("validation_error", "")
+    file_path = file_data["path"]
+    original_content = file_data.get("content", "")
 
     prompt = f"""
-You are a careful open-source patch-generation agent.
+You are an open-source code repair agent.
 
-Generate a minimal, complete unified diff for the approved implementation plan.
-
-Return ONLY valid JSON with exactly this schema:
-
-{{
-  "can_generate_patch": true,
-  "reason": "short explanation",
-  "diff": "--- a/file.py\\n+++ b/file.py\\n..."
-}}
-
-Rules:
-- Modify only files provided in Available files.
-- Follow the implementation plan exactly.
-- If test_plan is non-empty, modify at least one relevant test file.
-- Do not invent files.
-- Do not modify unrelated code.
-- Inspect the exact provided file content before writing the diff.
-- Do not assume lines exist if they are not shown in Available files.
-- Do not add unreachable code after raise statements.
-- A patch that changes only source code when tests are required is incomplete.
-- If a safe complete patch cannot be produced, return:
-  {{
-    "can_generate_patch": false,
-    "reason": "why the patch cannot be safely generated",
-    "diff": ""
-  }}
-- The diff must begin with --- and contain +++.
-- Start with {{ and end with }}.
-
-MANDATORY REQUIREMENTS:
-1. Return ONLY valid JSON. Do not use markdown fences.
-2. The JSON must contain can_generate_patch, reason, and diff.
-3. The diff must be a valid unified diff.
-4. If Test requirements is non-empty, modify both:
-   - at least one source file
-   - at least one test file
-5. For this issue, calculator.py must contain:
-   raise ValueError("Cannot divide by zero")
-6. For this issue, test_calculator.py must contain a pytest regression test.
-7. Do not claim a test was added unless a test file appears in the diff.
-8. Only modify files from Allowed files.
-9. If a previous patch was rejected, fix the rejection in the new patch.
+Modify ONE FILE ONLY.
 
 Issue:
 {json.dumps(state.get("issue", {}), indent=2)}
 
-Planner summary:
-{plan.get("summary", "")}
-
-Implementation requirements:
+Implementation plan:
 {json.dumps(plan.get("implementation_plan", []), indent=2)}
 
-Test requirements:
+Test plan:
 {json.dumps(plan.get("test_plan", []), indent=2)}
 
-Allowed files:
-{json.dumps(allowed_files, indent=2)}
+Previous failure feedback:
+{feedback}
 
-Available files:
-{json.dumps(relevant_files, indent=2)}
+Target file:
+{file_path}
 
-Previous validation error:
-{previous_error}
+Exact current file content:
+--- FILE START ---
+{original_content}
+--- FILE END ---
 
-You MUST fix this exact rejection.
-Do not return a patch that repeats the same failure.
+Rules:
+- Modify only the target file.
+- Follow the issue requirements exactly.
+- Preserve explicit exception types and messages from the issue.
+- Return the COMPLETE updated file content.
+- Do not return a diff.
+- Do not use markdown fences.
+- Do not add unrelated imports.
+- Do not invent unrelated behavior.
+
+Return ONLY valid JSON:
+
+{{
+  "should_modify": true,
+  "content": "complete updated file content"
+}}
+
+If this file does not need modification:
+
+{{
+  "should_modify": false,
+  "content": ""
+}}
 """
 
     response = llm.invoke(prompt)
     raw_response = response.content
 
-    print("\n----- PATCH RAW RESPONSE -----")
+    print(
+        f"\n----- FILE RESPONSE: {file_path} -----"
+    )
     print(raw_response)
-    print("----- END PATCH RAW RESPONSE -----\n")
+    print("----- END FILE RESPONSE -----\n")
 
-    try:
-        patch_data = extract_json(raw_response)
+    result = extract_json(raw_response)
 
-        if not patch_data.get("can_generate_patch", False):
-            return {
-                "patch": "",
-                "patch_generation_error": patch_data.get(
-                    "reason",
-                    "Model declined to generate a patch."
-                ),
-            }
+    if not result.get("should_modify", False):
+        return None
 
-        diff = patch_data.get("diff", "")
+    updated_content = result.get("content", "")
 
-        if not diff.startswith("---") or "+++ b/" not in diff:
-            return {
-                "patch": "",
-                "patch_generation_error": "Model did not return a valid unified diff.",
-            }
+    if not updated_content.strip():
+        return None
 
-        return {
-            "patch": diff,
-            "patch_generation_error": None,
-        }
+    return updated_content
 
-    except Exception as error:
+
+def create_unified_diff(
+    file_path: str,
+    original_content: str,
+    updated_content: str
+) -> str:
+    original_lines = original_content.splitlines(
+        keepends=True
+    )
+
+    updated_lines = updated_content.splitlines(
+        keepends=True
+    )
+
+    diff = difflib.unified_diff(
+        original_lines,
+        updated_lines,
+        fromfile=f"a/{file_path}",
+        tofile=f"b/{file_path}",
+        lineterm=""
+    )
+
+    return "\n".join(diff)
+
+
+def generate_patch(state: AgentState) -> dict:
+    relevant_files = state.get(
+        "codebase",
+        {}
+    ).get("relevant_files", [])[:6]
+
+    allowed_files = set(
+        state.get("selected_files", [])
+    )
+
+    feedback = (
+        state.get("validation_error")
+        or state.get("patch_error")
+        or state.get("test_error")
+        or ""
+    )
+
+    generated_diffs = []
+
+    for file_data in relevant_files:
+        file_path = file_data.get("path")
+
+        if file_path not in allowed_files:
+            continue
+
+        try:
+            updated_content = generate_file_content(
+                state=state,
+                file_data=file_data,
+                feedback=feedback
+            )
+
+            if updated_content is None:
+                continue
+
+            original_content = file_data.get(
+                "content",
+                ""
+            )
+
+            file_diff = create_unified_diff(
+                file_path=file_path,
+                original_content=original_content,
+                updated_content=updated_content
+            )
+
+            if file_diff.strip():
+                generated_diffs.append(file_diff)
+
+        except Exception as error:
+            print(
+                f"Patch generation failed for "
+                f"{file_path}: {error}"
+            )
+
+    if not generated_diffs:
         return {
             "patch": "",
-            "patch_generation_error": f"Patch generation failed: {error}",
+            "patch_generation_error": (
+                "Model did not generate any file changes."
+            )
         }
+
+    complete_patch = "\n".join(generated_diffs)
+
+    print("\n----- GENERATED UNIFIED DIFF -----")
+    print(complete_patch)
+    print("----- END GENERATED DIFF -----\n")
+
+    return {
+        "patch": complete_patch,
+        "patch_generation_error": None
+    }
 
 
 def patch_generator_node(state: AgentState) -> dict:
@@ -136,5 +193,20 @@ def patch_generator_node(state: AgentState) -> dict:
     return {
         **state,
         **patch_result,
-        "retry_count": state.get("retry_count", 0) + 1,
+
+        "changed_files": [],
+
+        "validation_passed": False,
+        "validation_error": None,
+
+        "patch_applied": False,
+        "patch_error": None,
+
+        "tests_passed": False,
+        "test_result": {},
+        "test_error": None,
+
+        "retry_count": (
+            state.get("retry_count", 0) + 1
+        )
     }

@@ -132,10 +132,12 @@ def should_generate_patch(state: AgentState) -> str:
 
 def planner_node(state: AgentState) -> dict:
     prompt_state = build_prompt(state)
-    analysis_state = classify_and_plan({**state, **prompt_state})
+
+    analysis_state = classify_and_plan(prompt_state)
+
+    plan = analysis_state.get("analysis", {})
 
     return {
         **state,
-        **prompt_state,
-        **analysis_state,
+        "plan": plan
     }

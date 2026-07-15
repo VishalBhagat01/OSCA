@@ -4,3 +4,4 @@ uvicorn
 requests 
 PyGithub
 gitpython
+GitPython

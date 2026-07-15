@@ -76,7 +76,7 @@ def patch_applier_node(state: AgentState) -> dict:
         delete=False,
         encoding="utf-8"
     ) as patch_file:
-        patch_file.write(patch)
+        patch_file.write(patch.rstrip("\n") + "\n")
         patch_path = patch_file.name
 
     try:

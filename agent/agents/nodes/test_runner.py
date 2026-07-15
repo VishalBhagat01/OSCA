@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 from agents.nodes.state import AgentState
 from agents.utils.retry_trace import add_retry_trace
@@ -29,7 +30,12 @@ def test_runner_node(state: AgentState) -> dict:
 
     try:
         result = run_command(
-            ["pytest", "-q"],
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q"
+            ],
             repo_path
         )
 

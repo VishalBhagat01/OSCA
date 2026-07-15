@@ -1,31 +1,30 @@
-from typing import TypedDict, Optional, Any
+from typing import TypedDict
 
 
 class AgentState(TypedDict, total=False):
     repo_path: str
-
-    issue: dict
     codebase: dict
+    issue: dict
+
     selected_files: list[str]
 
     plan: dict
-
     patch: str
-    patch_generation_error: Optional[str]
-
-    changed_files: list[str]
 
     validation_passed: bool
-    validation_error: Optional[str]
+    validation_error: str | None
 
     patch_applied: bool
-    patch_error: Optional[str]
+    patch_error: str | None
 
     tests_passed: bool
-    test_result: dict[str, Any]
-    test_error: Optional[str]
+    test_error: str | None
+    test_result: dict
+
+    acceptance_passed: bool
+    acceptance_error: str | None
+    acceptance_violations: list[str]
 
     retry_count: int
     max_retries: int
-
     retry_trace: list[dict]

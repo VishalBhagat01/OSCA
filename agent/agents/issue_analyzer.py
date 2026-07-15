@@ -21,15 +21,28 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
             },
             "selected_files": selected_files,
             "retry_count": 0,
-            "max_retries": 3,
+            "max_retries": 4,
             "retry_trace": []
         }
     )
 
     patch_success = (
-        final_state.get("validation_passed", False)
-        and final_state.get("patch_applied", False)
-        and final_state.get("tests_passed", False)
+        final_state.get(
+            "validation_passed",
+            False
+        )
+        and final_state.get(
+            "patch_applied",
+            False
+        )
+        and final_state.get(
+            "tests_passed",
+            False
+        )
+        and final_state.get(
+            "acceptance_passed",
+            False
+        )
     )
 
     return {
@@ -37,7 +50,8 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
         "proposed_patch": {
             "can_generate_patch": patch_success,
             "reason": (
-                final_state.get("validation_error")
+                final_state.get("acceptance_error")
+                or final_state.get("validation_error")
                 or final_state.get("patch_error")
                 or final_state.get("test_error")
             ),
@@ -65,6 +79,14 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
             "retry_trace": final_state.get(
                 "retry_trace",
                 []
-            )
+            ),
+            "acceptance_passed": final_state.get(
+                "acceptance_passed",
+                False
+            ),
+            "acceptance_violations": final_state.get(
+                "acceptance_violations",
+                []
+            ),
         }
     }

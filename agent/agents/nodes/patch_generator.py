@@ -1,198 +1,176 @@
-import difflib
 import json
+from pathlib import Path
 
+from git import Repo
+
+from agents.utils import retry_trace
+from agents.models.patch import FileEdit
 from agents.nodes.state import AgentState
-from agents.nodes.planner import extract_json
 from llm.ollama_client import llm
 
 
-def generate_file_content(
+structured_llm = llm.with_structured_output(FileEdit)
+
+def generate_file_edit(
     state: AgentState,
     file_data: dict,
-    feedback: str
-) -> str | None:
+    feedback: str,
+    repository_context: dict,
+) -> FileEdit:
     plan = state.get("plan", {})
-
     file_path = file_data["path"]
-    original_content = file_data.get("content", "")
 
     prompt = f"""
-You are an open-source code repair agent.
+        You are an open-source code repair agent.
 
-Modify ONE FILE ONLY.
+        Your task is to return the COMPLETE updated content of exactly one source file.
 
-Issue:
-{json.dumps(state.get("issue", {}), indent=2)}
+        ORIGINAL ISSUE:
+        {json.dumps(state.get("issue", {}), indent=2)}
 
-Implementation plan:
-{json.dumps(plan.get("implementation_plan", []), indent=2)}
+        PLANNER ANALYSIS:
+        {json.dumps(plan, indent=2)}
 
-Test plan:
-{json.dumps(plan.get("test_plan", []), indent=2)}
+        PREVIOUS EXECUTION FAILURE:
+        {feedback}
 
-Previous failure feedback:
-{feedback}
+        RELATED REPOSITORY FILES:
+        {json.dumps(repository_context, indent=2)}
 
-Target file:
-{file_path}
+        TARGET FILE:
+        {file_path}
 
-Exact current file content:
---- FILE START ---
-{original_content}
---- FILE END ---
+        CURRENT FILE CONTENT:
+        {json.dumps(file_data.get("content", ""))}
 
-Rules:
-- Modify only the target file.
-- Follow the issue requirements exactly.
-- Preserve explicit exception types and messages from the issue.
-- Return the COMPLETE updated file content.
-- Do not return a diff.
-- Do not use markdown fences.
-- Do not add unrelated imports.
-- Do not invent unrelated behavior.
+        INSTRUCTIONS:
+        - Follow the ORIGINAL ISSUE exactly.
+        - The ORIGINAL ISSUE is the authoritative specification.
+        - The original issue overrides ambiguous planner wording.
+        - Preserve exact exception types requested by the issue.
+        - Preserve exact exception messages requested by the issue.
+        - Never invent custom exceptions unless explicitly requested.
+        - Use PREVIOUS EXECUTION FAILURE to correct the previous attempt.
+        - If a previous failure mentions a missing symbol, do not use that invalid symbol again.
+        - Ensure imports reference symbols that actually exist in related repository files.
+        - Ensure the generated file is valid Python when the target file is a Python file.
 
-Return ONLY valid JSON:
+        OUTPUT RULES:
+        - Return the complete updated source code in the `content` field.
+        - `content` must contain source code only.
+        - Do not include markdown code fences.
+        - Do not include XML tags.
+        - Do not include <current_file>.
+        - Do not include </current_file>.
+        - Do not include FILE START or FILE END markers.
+        - Do not include explanations inside `content`.
+        - Do not return a unified diff.
+        - Modify only the TARGET FILE.
+        - Set `should_modify` to true when the target file requires changes.
+        - Set `should_modify` to false only when no modification is required.
+        """
 
-{{
-  "should_modify": true,
-  "content": "complete updated file content"
-}}
-
-If this file does not need modification:
-
-{{
-  "should_modify": false,
-  "content": ""
-}}
-"""
-
-    response = llm.invoke(prompt)
-    raw_response = response.content
-
-    print(
-        f"\n----- FILE RESPONSE: {file_path} -----"
-    )
-    print(raw_response)
-    print("----- END FILE RESPONSE -----\n")
-
-    result = extract_json(raw_response)
-
-    if not result.get("should_modify", False):
-        return None
-
-    updated_content = result.get("content", "")
-
-    if not updated_content.strip():
-        return None
-
-    return updated_content
-
-
-def create_unified_diff(
-    file_path: str,
-    original_content: str,
-    updated_content: str
-) -> str:
-    original_lines = original_content.splitlines(
-        keepends=True
-    )
-
-    updated_lines = updated_content.splitlines(
-        keepends=True
-    )
-
-    diff = difflib.unified_diff(
-        original_lines,
-        updated_lines,
-        fromfile=f"a/{file_path}",
-        tofile=f"b/{file_path}",
-        lineterm=""
-    )
-
-    return "\n".join(diff)
+    return structured_llm.invoke(prompt)
 
 
 def generate_patch(state: AgentState) -> dict:
-    relevant_files = state.get(
-        "codebase",
-        {}
-    ).get("relevant_files", [])[:6]
+    repo_path = Path(state["repo_path"])
+    repo = Repo(repo_path)
 
     allowed_files = set(
         state.get("selected_files", [])
     )
 
+    relevant_files = state.get(
+        "codebase",
+        {}
+    ).get("relevant_files", [])
+
+    retry_trace = state.get("retry_trace", [])
+
     feedback = (
-        state.get("validation_error")
-        or state.get("patch_error")
-        or state.get("test_error")
-        or ""
+        retry_trace[-1].get("error", "")
+        if retry_trace
+        else ""
     )
 
-    generated_diffs = []
+    try:
+        repo.git.reset("--hard", "HEAD")
 
-    for file_data in relevant_files:
-        file_path = file_data.get("path")
-
-        if file_path not in allowed_files:
-            continue
-
-        try:
-            updated_content = generate_file_content(
-                state=state,
-                file_data=file_data,
-                feedback=feedback
+        repository_context = {
+            file_data["path"]: (
+                repo_path / file_data["path"]
+            ).read_text(
+                encoding="utf-8"
             )
+            for file_data in relevant_files
+            if (
+                repo_path / file_data["path"]
+            ).is_file()
+        }
 
-            if updated_content is None:
+        for file_data in relevant_files:
+            file_path = file_data["path"]
+
+            if file_path not in allowed_files:
                 continue
 
-            original_content = file_data.get(
-                "content",
+            current_content = repository_context.get(
+                file_path,
                 ""
             )
 
-            file_diff = create_unified_diff(
-                file_path=file_path,
-                original_content=original_content,
-                updated_content=updated_content
+            file_context = {
+                **file_data,
+                "content": current_content,
+            }
+
+            edit = generate_file_edit(
+                state=state,
+                file_data=file_context,
+                feedback=feedback,
+                repository_context=repository_context,
             )
 
-            if file_diff.strip():
-                generated_diffs.append(file_diff)
+            if not edit.should_modify:
+                continue
 
-        except Exception as error:
-            print(
-                f"Patch generation failed for "
-                f"{file_path}: {error}"
+            target_file = repo_path / file_path
+
+            target_file.write_text(
+                edit.content,
+                encoding="utf-8",
             )
 
-    if not generated_diffs:
+        diff = repo.git.diff()
+
+        return {
+            "patch": diff,
+            "patch_generation_error": (
+                None
+                if diff
+                else "Model generated no file changes."
+            ),
+        }
+
+    except Exception as error:
         return {
             "patch": "",
             "patch_generation_error": (
-                "Model did not generate any file changes."
-            )
+                f"Patch generation failed: {error}"
+            ),
         }
 
-    complete_patch = "\n".join(generated_diffs)
-
-    print("\n----- GENERATED UNIFIED DIFF -----")
-    print(complete_patch)
-    print("----- END GENERATED DIFF -----\n")
-
-    return {
-        "patch": complete_patch,
-        "patch_generation_error": None
-    }
+    finally:
+        repo.git.reset("--hard", "HEAD")
 
 
 def patch_generator_node(state: AgentState) -> dict:
-    patch_result = generate_patch(state)
+    result = generate_patch(state)
 
     return {
         **state,
-        **patch_result,
+        **result,
 
         "changed_files": [],
 
@@ -208,5 +186,5 @@ def patch_generator_node(state: AgentState) -> dict:
 
         "retry_count": (
             state.get("retry_count", 0) + 1
-        )
+        ),
     }

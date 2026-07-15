@@ -28,3 +28,5 @@ class AgentState(TypedDict, total=False):
     retry_count: int
     max_retries: int
     retry_trace: list[dict]
+
+    execution_trace: list[dict]

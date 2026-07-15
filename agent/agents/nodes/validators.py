@@ -3,6 +3,7 @@ from typing import Any
 
 from agents.nodes.state import AgentState
 from agents.utils.retry_trace import add_retry_trace
+from agents.utils.execution_trace import add_execution_event
 
 TEST_FILE_PATTERNS = [
     r"(^|/)test_.*\.py$",
@@ -104,33 +105,80 @@ def validate_patch(
         "changed_files": changed_files,
     }
 
-
 def validation_node(state: AgentState) -> dict:
-    plan = state.get("plan", {})
+    proposed_patch = state.get("proposed_patch", {})
 
-    result = validate_patch(
-        diff=state.get("patch", ""),
-        allowed_files=state.get("selected_files", []),
-        test_plan=plan.get("test_plan"),
+    diff = (
+        state.get("patch")
+        or proposed_patch.get("diff", "")
     )
 
-    if not result["valid"]:
-        error = result["error"]
+    allowed_files = state.get("selected_files", [])
 
-        return {
-            **state,
-            "validation_passed": False,
-            "validation_error": error,
-            "retry_trace": add_retry_trace(
-                state,
-                stage="validation",
-                error=error,
-            ),
-        }
+    plan = (
+        state.get("plan")
+        or state.get("analysis", {})
+    )
 
-    return {
+    test_plan = plan.get("test_plan", [])
+
+    validation_result = validate_patch(
+        diff=diff,
+        allowed_files=allowed_files,
+        test_plan=test_plan,
+    )
+
+    validation_passed = validation_result.get(
+        "valid",
+        False,
+    )
+
+    validation_error = validation_result.get(
+        "error"
+    )
+
+    changed_files = validation_result.get(
+        "changed_files",
+        [],
+    )
+
+    updated_state = {
         **state,
-        "validation_passed": True,
-        "validation_error": None,
-        "changed_files": result["changed_files"],
+        "validation_passed": validation_passed,
+        "validation_error": validation_error,
+        "changed_files": changed_files,
     }
+
+    if not validation_passed:
+        updated_state["retry_trace"] = add_retry_trace(
+            updated_state,
+            stage="validation",
+            error=(
+                validation_error
+                or "Patch validation failed."
+            ),
+        )
+
+    if validation_passed:
+        status = "success"
+        message = "Patch validation passed."
+    else:
+        status = "failed"
+        message = (
+            validation_error
+            or "Patch validation failed."
+        )
+
+    updated_state["execution_trace"] = (
+        add_execution_event(
+            updated_state,
+            node="validator",
+            status=status,
+            message=message,
+            details={
+                "changed_files": changed_files,
+            },
+        )
+    )
+
+    return updated_state

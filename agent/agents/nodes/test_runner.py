@@ -3,7 +3,7 @@ import sys
 
 from agents.nodes.state import AgentState
 from agents.utils.retry_trace import add_retry_trace
-
+from agents.utils.execution_trace import add_execution_event
 
 def run_command(
     command: list[str],
@@ -26,86 +26,71 @@ def run_command(
 
 
 def test_runner_node(state: AgentState) -> dict:
-    repo_path = state["repo_path"]
+    test_result = run_command(state)
 
-    try:
-        result = run_command(
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                "-q"
-            ],
-            repo_path
+    tests_passed = test_result.get(
+        "success",
+        False,
+    )
+
+    test_error = None
+
+    if not tests_passed:
+        test_error = (
+            test_result.get("stderr")
+            or test_result.get("stdout")
+            or "Tests failed."
         )
 
-        if not result["success"]:
-            error_output = (
-                result["stderr"]
-                or result["stdout"]
-                or "Tests failed with no output."
-            )
+    updated_state = {
+        **state,
+        "tests_passed": tests_passed,
+        "test_result": test_result,
+        "test_error": test_error,
+    }
 
-            return {
-                **state,
-                "tests_passed": False,
-                "test_result": result,
-                "test_error": error_output,
-                "retry_trace": add_retry_trace(
-                    state,
-                    stage="tests",
-                    error=error_output
-                )
-            }
-
-        return {
-            **state,
-            "tests_passed": True,
-            "test_result": result,
-            "test_error": None,
-            "retry_trace": add_retry_trace(
-                state,
-                stage="success",
-                error=None
-            )
-        }
-
-    except subprocess.TimeoutExpired:
-        error = "Test execution timed out after 60 seconds."
-
-        return {
-            **state,
-            "tests_passed": False,
-            "test_result": {
-                "success": False,
-                "stdout": "",
-                "stderr": error,
-                "return_code": None
-            },
-            "test_error": error,
-            "retry_trace": add_retry_trace(
-                state,
+    if not tests_passed:
+        updated_state["retry_trace"] = (
+            add_retry_trace(
+                updated_state,
                 stage="tests",
-                error=error
+                error=test_error,
             )
-        }
+        )
 
-    except Exception as error:
-        error_message = f"Could not run tests: {error}"
+        updated_state["execution_trace"] = (
+            add_execution_event(
+                updated_state,
+                node="test_runner",
+                status="failed",
+                message="Test execution failed.",
+                details={
+                    "error": test_error,
+                    "return_code": test_result.get(
+                        "return_code"
+                    ),
+                },
+            )
+        )
 
-        return {
-            **state,
-            "tests_passed": False,
-            "test_result": {
-                "success": False,
-                "stdout": "",
-                "stderr": str(error),
-                "return_code": None
+        return updated_state
+
+    updated_state["execution_trace"] = (
+        add_execution_event(
+            updated_state,
+            node="test_runner",
+            status="success",
+            message="All tests passed.",
+            details={
+                "stdout": test_result.get(
+                    "stdout",
+                    ""
+                ),
+                "return_code": test_result.get(
+                    "return_code"
+                ),
             },
-            "test_error": error_message,
-            "retry_trace": add_retry_trace(
-                state,
-                stage="tests",
-                error=error_message
-            )
-        }
+        )
+    )
+
+    return updated_state

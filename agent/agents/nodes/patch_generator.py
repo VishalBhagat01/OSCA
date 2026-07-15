@@ -7,7 +7,7 @@ from agents.utils import retry_trace
 from agents.models.patch import FileEdit
 from agents.nodes.state import AgentState
 from llm.ollama_client import llm
-
+from agents.utils.execution_trace import add_execution_event
 
 structured_llm = llm.with_structured_output(FileEdit)
 
@@ -166,25 +166,53 @@ def generate_patch(state: AgentState) -> dict:
 
 
 def patch_generator_node(state: AgentState) -> dict:
-    result = generate_patch(state)
+    patch_state = generate_patch(state)
+
+    patch = patch_state.get("patch", "")
+    patch_error = patch_state.get(
+        "patch_generation_error"
+    )
+
+    updated_state = {
+        **state,
+        **patch_state,
+        "retry_count": state.get(
+            "retry_count",
+            0
+        ) + 1,
+    }
+
+    if patch:
+        execution_trace = add_execution_event(
+            updated_state,
+            node="patch_generator",
+            status="success",
+            message="Patch generated successfully.",
+            details={
+                "patch_length": len(patch),
+                "attempt": updated_state[
+                    "retry_count"
+                ],
+            },
+        )
+
+    else:
+        execution_trace = add_execution_event(
+            updated_state,
+            node="patch_generator",
+            status="failed",
+            message=(
+                patch_error
+                or "Patch generation failed."
+            ),
+            details={
+                "attempt": updated_state[
+                    "retry_count"
+                ],
+            },
+        )
 
     return {
-        **state,
-        **result,
-
-        "changed_files": [],
-
-        "validation_passed": False,
-        "validation_error": None,
-
-        "patch_applied": False,
-        "patch_error": None,
-
-        "tests_passed": False,
-        "test_result": {},
-        "test_error": None,
-
-        "retry_count": (
-            state.get("retry_count", 0) + 1
-        ),
+        **updated_state,
+        "execution_trace": execution_trace,
     }

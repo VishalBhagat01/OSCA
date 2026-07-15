@@ -47,6 +47,12 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
 
     return {
         "analysis": final_state.get("plan", {}),
+
+        "execution_trace": final_state.get(
+            "execution_trace",
+            [],
+        ),
+
         "proposed_patch": {
             "can_generate_patch": patch_success,
             "reason": (
@@ -58,35 +64,35 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
             "diff": final_state.get("patch", ""),
             "changed_files": final_state.get(
                 "changed_files",
-                []
+                [],
             ),
             "patch_applied": final_state.get(
                 "patch_applied",
-                False
+                False,
             ),
             "tests_passed": final_state.get(
                 "tests_passed",
-                False
+                False,
             ),
             "test_result": final_state.get(
                 "test_result",
-                {}
+                {},
             ),
             "retry_count": final_state.get(
                 "retry_count",
-                0
+                0,
             ),
             "retry_trace": final_state.get(
                 "retry_trace",
-                []
+                [],
             ),
             "acceptance_passed": final_state.get(
                 "acceptance_passed",
-                False
+                False,
             ),
             "acceptance_violations": final_state.get(
                 "acceptance_violations",
-                []
+                [],
             ),
-        }
+        },
     }

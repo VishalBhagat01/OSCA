@@ -3,7 +3,7 @@ import re
 
 from agents.nodes.state import AgentState
 from llm.ollama_client import llm
-
+from agents.utils.execution_trace import add_execution_event
 
 def extract_json(raw_response: str) -> dict:
     cleaned = raw_response.strip()
@@ -139,5 +139,19 @@ def planner_node(state: AgentState) -> dict:
 
     return {
         **state,
-        "plan": plan
+        "plan": plan,
+        "execution_trace": add_execution_event(
+            state,
+            node="planner",
+            status="success",
+            message=(
+                "Issue analyzed and implementation "
+                "plan created."
+            ),
+            details={
+                "issue_type": plan.get("issue_type"),
+                "difficulty": plan.get("difficulty"),
+                "confidence": plan.get("confidence"),
+            },
+        ),
     }

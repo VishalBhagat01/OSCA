@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from agents.nodes.state import AgentState
 from agents.utils.retry_trace import add_retry_trace
 from llm.ollama_client import llm
-
+from agents.utils.execution_trace import add_execution_event
 
 class AcceptanceResult(BaseModel):
     accepted: bool
@@ -82,26 +82,58 @@ def acceptance_validator_node(
 
         Result:
         accepted = true
-        """
+    """
 
     result = acceptance_llm.invoke(prompt)
 
     if not result.accepted:
-        return {
+        updated_state = {
             **state,
             "acceptance_passed": False,
             "acceptance_error": result.reason,
             "acceptance_violations": result.violations,
-            "retry_trace": add_retry_trace(
-                state,
-                stage="acceptance",
-                error=result.reason,
-            ),
         }
 
-    return {
+        updated_state["retry_trace"] = add_retry_trace(
+            updated_state,
+            stage="acceptance",
+            error=result.reason,
+        )
+
+        updated_state["execution_trace"] = (
+            add_execution_event(
+                updated_state,
+                node="acceptance_validator",
+                status="failed",
+                message=result.reason,
+                details={
+                    "violations": result.violations,
+                },
+            )
+        )
+
+        return updated_state
+
+    updated_state = {
         **state,
         "acceptance_passed": True,
         "acceptance_error": None,
         "acceptance_violations": [],
     }
+
+    updated_state["execution_trace"] = (
+        add_execution_event(
+            updated_state,
+            node="acceptance_validator",
+            status="success",
+            message=(
+                "Patch satisfies the original issue "
+                "requirements."
+            ),
+            details={
+                "violations": [],
+            },
+        )
+    )
+
+    return updated_state

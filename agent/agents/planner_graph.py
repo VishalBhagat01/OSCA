@@ -79,7 +79,6 @@ def create_planner_graph():
     graph.set_entry_point("planner")
 
     graph.add_edge("planner","patch_generator")
-
     graph.add_edge("patch_generator","validator")
 
     graph.add_conditional_edges("validator",route_after_validation,
@@ -89,7 +88,6 @@ def create_planner_graph():
             END: END
         }
     )
-
     graph.add_conditional_edges("patch_applier", route_after_patch_apply,
         {
             "patch_generator": "patch_generator",
@@ -97,7 +95,6 @@ def create_planner_graph():
             END: END
         }
     )
-
     graph.add_conditional_edges(
         "test_runner",
         route_after_tests,
@@ -107,7 +104,6 @@ def create_planner_graph():
             END: END,
         },
     )
-
     graph.add_conditional_edges(
         "acceptance_validator",
         route_after_acceptance,

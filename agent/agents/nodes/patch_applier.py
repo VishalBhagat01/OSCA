@@ -1,7 +1,7 @@
 import os
 import subprocess
 import tempfile
-
+from agents.utils.execution_trace import add_execution_event
 from agents.nodes.state import AgentState
 from agents.utils.retry_trace import add_retry_trace
 
@@ -32,51 +32,26 @@ def reset_repository(repo_path: str) -> dict:
     )
 
 
-def patch_applier_node(state: AgentState) -> dict:
+def patch_applier_node(state: dict) -> dict:
     repo_path = state["repo_path"]
-    patch = state.get("patch", "")
 
-    if not patch.strip():
-        error = "Cannot apply an empty patch."
+    proposed_patch = state.get(
+        "proposed_patch",
+        {},
+    )
 
-        return {
-            **state,
-            "patch_applied": False,
-            "patch_error": error,
-            "retry_trace": add_retry_trace(
-                state,
-                stage="patch_apply",
-                error=error
-            )
-        }
-
-    if state.get("retry_count", 0) > 1:
-        reset_result = reset_repository(repo_path)
-
-        if not reset_result["success"]:
-            error = (
-                "Could not reset repository before retry: "
-                f"{reset_result['stderr']}"
-            )
-
-            return {
-                **state,
-                "patch_applied": False,
-                "patch_error": error,
-                "retry_trace": add_retry_trace(
-                    state,
-                    stage="patch_apply",
-                    error=error
-                )
-            }
+    patch = (
+        state.get("patch")
+        or proposed_patch.get("diff", "")
+    )
 
     with tempfile.NamedTemporaryFile(
         mode="w",
         suffix=".patch",
         delete=False,
-        encoding="utf-8"
+        encoding="utf-8",
     ) as patch_file:
-        patch_file.write(patch.rstrip("\n") + "\n")
+        patch_file.write(patch)
         patch_path = patch_file.name
 
     try:
@@ -85,9 +60,9 @@ def patch_applier_node(state: AgentState) -> dict:
                 "git",
                 "apply",
                 "--check",
-                patch_path
+                patch_path,
             ],
-            repo_path
+            repo_path,
         )
 
         if not check_result["success"]:
@@ -96,24 +71,41 @@ def patch_applier_node(state: AgentState) -> dict:
                 f"{check_result['stderr']}"
             )
 
-            return {
+            updated_state = {
                 **state,
                 "patch_applied": False,
-                "patch_error": error,
-                "retry_trace": add_retry_trace(
-                    state,
-                    stage="patch_apply",
-                    error=error
-                )
+                "patch_error": check_result["stderr"],
+                "validation_passed": False,
+                "validation_error": error,
             }
+
+            updated_state["retry_trace"] = (
+                add_retry_trace(
+                    updated_state,
+                    stage="patch_apply",
+                    error=error,
+                )
+            )
+
+            updated_state["execution_trace"] = (
+                add_execution_event(
+                    updated_state,
+                    node="patch_applier",
+                    status="failed",
+                    message=error,
+                    details={},
+                )
+            )
+
+            return updated_state
 
         apply_result = run_git_command(
             [
                 "git",
                 "apply",
-                patch_path
+                patch_path,
             ],
-            repo_path
+            repo_path,
         )
 
         if not apply_result["success"]:
@@ -122,22 +114,51 @@ def patch_applier_node(state: AgentState) -> dict:
                 f"{apply_result['stderr']}"
             )
 
-            return {
+            updated_state = {
                 **state,
                 "patch_applied": False,
-                "patch_error": error,
-                "retry_trace": add_retry_trace(
-                    state,
-                    stage="patch_apply",
-                    error=error
-                )
+                "patch_error": apply_result["stderr"],
+                "validation_passed": False,
+                "validation_error": error,
             }
 
-        return {
+            updated_state["retry_trace"] = (
+                add_retry_trace(
+                    updated_state,
+                    stage="patch_apply",
+                    error=error,
+                )
+            )
+
+            updated_state["execution_trace"] = (
+                add_execution_event(
+                    updated_state,
+                    node="patch_applier",
+                    status="failed",
+                    message=error,
+                    details={},
+                )
+            )
+
+            return updated_state
+
+        updated_state = {
             **state,
             "patch_applied": True,
-            "patch_error": None
+            "patch_error": None,
         }
+
+        updated_state["execution_trace"] = (
+            add_execution_event(
+                updated_state,
+                node="patch_applier",
+                status="success",
+                message="Patch applied successfully.",
+                details={},
+            )
+        )
+
+        return updated_state
 
     finally:
         if os.path.exists(patch_path):

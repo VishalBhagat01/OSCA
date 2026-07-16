@@ -100,7 +100,9 @@ def collect_context(data: AnalyzeIssueRequest):
     return {
         "repo_path": repo_path,
         "keywords": keywords,
-        "important_files_found": list(repo_data["important_files"].keys()),
+        "important_files_found": list(
+            repo_data["important_files"].keys()
+        ),
         "relevant_files": [
             {
                 "path": file["path"],
@@ -109,8 +111,9 @@ def collect_context(data: AnalyzeIssueRequest):
             for file in relevant_files
         ],
         "analysis": agent_result["analysis"],
+        "execution_trace": agent_result["execution_trace"],
         "proposed_patch": agent_result["proposed_patch"]
-}
+    }
 
 
 @app.post("/analyze-issue")

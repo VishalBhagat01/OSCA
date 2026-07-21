@@ -26,7 +26,12 @@ def run_command(
 
 
 def test_runner_node(state: AgentState) -> dict:
-    test_result = run_command(state)
+    repo_path = state["repo_path"]
+
+    test_result = run_command(
+        [sys.executable, "-m", "pytest"],
+        repo_path,
+    )
 
     tests_passed = test_result.get(
         "success",

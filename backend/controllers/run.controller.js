@@ -1,5 +1,6 @@
-const Run = require("../models/Run");
+const Run = require("../models/run_schema");
 const { processRun } = require("../services/runProcessor");
+const io = req.app.get("io");
 
 exports.createRun = async (req, res) => {
     try {
@@ -31,14 +32,18 @@ exports.createRun = async (req, res) => {
             status: "queued",
         });
 
-        processRun(run._id, {
-            repo_url: repoUrl,
-            issue_number: issueNumber,
-            issue_title: issueTitle,
-            issue_body: issueBody,
-            labels,
-            comments,
-        });
+        processRun(
+            io,
+            run._id,
+            {
+                repo_url: repoUrl,
+                issue_number: issueNumber,
+                issue_title: issueTitle,
+                issue_body: issueBody,
+                labels,
+                comments,
+            }
+        );
 
         return res.status(202).json({
             success: true,

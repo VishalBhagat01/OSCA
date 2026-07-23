@@ -84,20 +84,26 @@ def validate_patch(
         }
 
     if test_plan:
-        test_files = [
-            file_path
-            for file_path in changed_files
-            if is_test_file(file_path)
-        ]
+        has_allowed_test_files = any(
+            is_test_file(file_path)
+            for file_path in allowed_files
+        )
 
-        if not test_files:
-            return {
-                "valid": False,
-                "error": (
-                    "Patch must modify at least one test file "
-                    "because a test plan exists."
-                ),
-            }
+        if has_allowed_test_files:
+            test_files = [
+                file_path
+                for file_path in changed_files
+                if is_test_file(file_path)
+            ]
+
+            if not test_files:
+                return {
+                    "valid": False,
+                    "error": (
+                        "Patch must modify at least one test file "
+                        "because a test plan exists."
+                    ),
+                }
 
     return {
         "valid": True,

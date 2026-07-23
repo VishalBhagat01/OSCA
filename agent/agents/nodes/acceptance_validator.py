@@ -46,42 +46,26 @@ def acceptance_validator_node(
 
         REVIEW RULES:
         - The ORIGINAL ISSUE is the authoritative specification.
-        - Passing tests does NOT automatically mean the patch is correct.
-        - Verify exact exception types requested by the issue.
-        - Verify exact exception messages requested by the issue.
-        - Verify explicitly requested behavior.
-        - Verify explicitly requested files or tests when stated.
-        - Detect when the implementation and generated tests agree with
-        each other but violate the original issue.
-        - Do not accept alternative behavior when the issue specifies
-        exact behavior.
-        - Do not invent additional requirements.
-        - Judge only requirements explicitly stated in the original issue.
+        - Verify exact exception types or messages ONLY if explicitly requested by the ORIGINAL ISSUE.
+        - If the ORIGINAL ISSUE does not specify a specific exception type or message, any standard appropriate fix (e.g. standard exception or return value) that resolves the issue is ACCEPTED.
+        - Passing tests with a clean fix that solves the issue without violating explicit requirements should be ACCEPTED.
+        - Do NOT invent additional requirements or unstated constraints not present in the ORIGINAL ISSUE.
+        - Do NOT reject a patch for handling edge cases in a standard way if the ORIGINAL ISSUE did not forbid it.
+        - Judge ONLY requirements explicitly stated in the ORIGINAL ISSUE.
 
         Examples:
 
-        Issue requires:
-        raise ValueError("Cannot divide by zero")
+        Example 1 (Explicit constraint violated):
+        Issue explicitly requires: raise CustomFormatError("Invalid string format")
+        Patch uses: raise ValueError("Invalid string format")
+        Result: accepted = false
+        Reason: The patch uses ValueError instead of the explicitly required CustomFormatError.
 
-        Patch uses:
-        raise ZeroDivisionError("Cannot divide by zero")
-
-        Result:
-        accepted = false
-
-        Reason:
-        The patch uses ZeroDivisionError instead of the explicitly
-        required ValueError.
-
-        Another example:
-
-        Issue requires:
-        is_palindrome("Madam") returns True
-
-        Patch performs case-insensitive comparison and tests pass.
-
-        Result:
-        accepted = true
+        Example 2 (General bug fix with no explicit exception specified):
+        Issue describes: "Function fails on zero or negative input"
+        Patch adds proper check for non-positive input and handles it gracefully, and all tests pass.
+        Result: accepted = true
+        Reason: The patch fixes the issue and does not violate any explicit requirement in the issue.
     """
 
     result = acceptance_llm.invoke(prompt)

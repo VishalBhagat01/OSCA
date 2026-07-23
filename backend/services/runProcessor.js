@@ -15,17 +15,23 @@ async function processRun(io,runId,payload) {
         });
 
         const result = await runAgent(payload);
+        const succeeded = result?.proposed_patch?.can_generate_patch === true;
+        const status = succeeded ? "completed" : "failed";
+        const error = succeeded
+            ? undefined
+            : result?.proposed_patch?.reason || "Run did not satisfy acceptance criteria.";
 
         await Run.findByIdAndUpdate(runId, {
-            status: "completed",
+            status,
             completedAt: new Date(),
             result,
             executionTrace: result.execution_trace || [],
+            ...(error ? { error } : {}),
         });
 
         io.emit("run:update", {
             runId,
-            status: "completed",
+            status,
         });
 
     } catch (err) {

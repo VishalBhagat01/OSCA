@@ -57,6 +57,17 @@ def extract_keywords(issue_title: str, issue_body: str) -> list[str]:
 
     return sorted(expanded_keywords)
 
+def is_test_path(path: str) -> bool:
+    normalized = path.lower().replace("\\", "/")
+    filename = os.path.basename(normalized)
+    return (
+        normalized.startswith("tests/")
+        or "/tests/" in normalized
+        or filename.startswith("test_")
+        or filename.endswith("_test.py")
+    )
+
+
 def select_relevant_files(
     repo_path: str,
     file_tree: list[str],
@@ -106,21 +117,15 @@ def select_relevant_files(
 
         score = path_score + content_score
 
-        # Prefer Flask source code.
+        # Prefer Flask/source code.
         if normalized_path.startswith("src/"):
             score += 8
 
         # Tests are useful, but should not dominate implementation files.
-        if normalized_path.startswith("tests/"):
+        if is_test_path(normalized_path):
             score -= 2
-
-        # Test files are still useful as regression-test candidates.
-        if os.path.basename(normalized_path).startswith("test_"):
+        else:
             score += 2
-
-        # Test app fixtures are lower priority than actual tests.
-        if "/test_apps/" in normalized_path:
-            score -= 5
 
         if score <= 0:
             continue
@@ -135,12 +140,12 @@ def select_relevant_files(
 
     source_files = [
         file for file in scored_files
-        if not file["path"].lower().replace("\\", "/").startswith("tests/")
+        if not is_test_path(file["path"])
     ]
 
     test_files = [
         file for file in scored_files
-        if file["path"].lower().replace("\\", "/").startswith("tests/")
+        if is_test_path(file["path"])
     ]
 
     selected_files = source_files[:6]

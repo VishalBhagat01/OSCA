@@ -1,9 +1,9 @@
 const Run = require("../models/run_schema");
 const { processRun } = require("../services/runProcessor");
-const io = req.app.get("io");
 
 exports.createRun = async (req, res) => {
     try {
+        const io = req.app.get("io");
 
         const {
             repoUrl,

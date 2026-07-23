@@ -16,33 +16,33 @@ const RunDetails = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+      const fetchRun = async () => {
+        try {
+          const { data } = await api.get(`/runs/${id}`);
+          setRun(data.run);
+        } catch (err) {
+          console.log(err);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-      socket.on("run:update", (data) => {
+      const handleRunUpdate = (data) => {
 
           if (data.runId !== id) return;
 
           fetchRun();
+      };
 
-      });
+      fetchRun();
+      socket.on("run:update", handleRunUpdate);
 
       return () => {
-
-          socket.off("run:update");
+          socket.off("run:update", handleRunUpdate);
 
       };
 
-  }, []);
-
-  const fetchRun = async () => {
-    try {
-      const { data } = await api.get(`/runs/${id}`);
-      setRun(data.run);
-    } catch (err) {
-      console.log(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id]);
 
   if (loading) {
     return <h2>Loading...</h2>;

@@ -4,6 +4,7 @@ import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 
 const Home = () => {
+    const navigate = useNavigate();
     const [repoUrl, setRepoUrl] = useState("");
     const [issueNumber, setIssueNumber] = useState("");
     const [loading, setLoading] = useState(false);
@@ -22,6 +23,8 @@ const Home = () => {
             };
 
             const { data } = await api.post("/runs", payload);
+
+            setRunId(data.runId);
 
             navigate(`/runs/${data.runId}`);
 

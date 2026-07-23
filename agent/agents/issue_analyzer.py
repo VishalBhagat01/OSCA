@@ -14,8 +14,8 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
             "repo_path": codebase["repo_path"],
             "codebase": codebase,
             "issue": {
-                "title": issue.get("issue_title", ""),
-                "body": issue.get("issue_body", ""),
+                "title": issue.get("title", ""),
+                "body": issue.get("body", ""),
                 "labels": issue.get("labels", []),
                 "comments": issue.get("comments", [])
             },

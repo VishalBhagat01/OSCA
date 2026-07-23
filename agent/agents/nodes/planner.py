@@ -77,7 +77,8 @@ Rules:
 - For "discussion" or "needs_clarification", keep implementation_plan and test_plan empty.
 - Mention only files present in Retrieved repository files.
 - For a clear bug, include source-file and test-file changes when tests are available.
-- Start with {{ and end with }}.
+- The implementation_plan must adhere strictly to the exact requirement, exception type (e.g., CustomException vs ValueError), exception message, or return value specified in the Issue. Do not substitute or invent alternative error handling.
+- Start with [ and end with ].
 """
 
     return {"prompt": prompt}

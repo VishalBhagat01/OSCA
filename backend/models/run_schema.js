@@ -37,4 +37,4 @@ const RunSchema = new mongoose.Schema(
     timestamps: true,
 });
 
-module.exports = RunSchema;
+module.exports = mongoose.models.Run || mongoose.model("Run", RunSchema);

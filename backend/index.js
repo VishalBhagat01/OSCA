@@ -1,5 +1,6 @@
 const http = require("http");
 const { Server } = require("socket.io");
+require("dotenv").config();
 
 const app = require("./app");
 const connectDB = require("./config/db");
@@ -10,7 +11,10 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
         methods: ["GET", "POST"],
     },
 });

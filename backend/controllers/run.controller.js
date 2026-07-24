@@ -8,16 +8,17 @@ exports.createRun = async (req, res) => {
         const {
             repoUrl,
             issueNumber,
-            issueTitle,
             issueBody = "",
             labels = [],
             comments = [],
         } = req.body;
 
-        if (!repoUrl || !issueNumber || !issueTitle) {
+        const issueTitle = req.body.issueTitle || `Issue #${issueNumber}`;
+
+        if (!repoUrl || !issueNumber) {
             return res.status(400).json({
                 success: false,
-                message: "repoUrl, issueNumber and issueTitle are required.",
+                message: "repoUrl and issueNumber are required.",
             });
         }
 

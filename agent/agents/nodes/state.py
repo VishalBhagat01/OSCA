@@ -30,3 +30,8 @@ class AgentState(TypedDict, total=False):
     retry_trace: list[dict]
 
     execution_trace: list[dict]
+
+    retry: bool
+    feedback: str | None
+    previous_result: dict | None
+    callback_url: str | None

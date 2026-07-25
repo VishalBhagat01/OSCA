@@ -1,7 +1,14 @@
 from agents.planner_graph import planner_graph
 
 
-def analyze_issue(issue: dict, codebase: dict) -> dict:
+def analyze_issue(
+    issue,
+    codebase,
+    retry=False,
+    feedback=None,
+    previous_result=None,
+    callback_url=None,
+):
     relevant_files = codebase.get("relevant_files", [])
 
     selected_files = [
@@ -13,16 +20,25 @@ def analyze_issue(issue: dict, codebase: dict) -> dict:
         {
             "repo_path": codebase["repo_path"],
             "codebase": codebase,
+
             "issue": {
                 "title": issue.get("title", ""),
                 "body": issue.get("body", ""),
                 "labels": issue.get("labels", []),
-                "comments": issue.get("comments", [])
+                "comments": issue.get("comments", []),
             },
+
             "selected_files": selected_files,
+
+            "retry": retry,
+            "feedback": feedback,
+            "previous_result": previous_result,
+            "callback_url": callback_url,
+
             "retry_count": 0,
             "max_retries": 4,
-            "retry_trace": []
+            "retry_trace": [],
+            "execution_trace": [],
         }
     )
 

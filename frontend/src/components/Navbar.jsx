@@ -13,8 +13,8 @@ const Navbar = () => {
                 >
                     <GitBranch className="h-6 w-6 text-blue-500" />
 
-                    <h1 className="text-lg font-bold text-white sm:text-xl">
-                        Open Source Agent
+                    <h1 className="text-lg font-bold text-white sm:text-xl" style={{ fontFamily: "Satoshi, sans-serif" }}>
+                        Sentra AI
                     </h1>
                 </Link>
 

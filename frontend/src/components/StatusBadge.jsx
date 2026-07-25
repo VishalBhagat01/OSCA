@@ -6,9 +6,15 @@ const statusStyles = {
     },
 
     running: {
-        dot: "bg-blue-400",
+        dot: "bg-blue-400 animate-pulse",
         badge:
             "border-blue-500/30 bg-blue-500/10 text-blue-300",
+    },
+
+    awaiting_approval: {
+        dot: "bg-violet-400",
+        badge:
+            "border-violet-500/30 bg-violet-500/10 text-violet-300",
     },
 
     completed: {
@@ -21,6 +27,12 @@ const statusStyles = {
         dot: "bg-red-400",
         badge:
             "border-red-500/30 bg-red-500/10 text-red-300",
+    },
+
+    rejected: {
+        dot: "bg-rose-400",
+        badge:
+            "border-rose-500/30 bg-rose-500/10 text-rose-300",
     },
 };
 

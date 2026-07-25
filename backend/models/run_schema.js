@@ -9,6 +9,7 @@ const RunSchema = new mongoose.Schema(
     issue: {
         number: Number,
         title: String,
+        body: String,
     },
 
     status: {
@@ -16,11 +17,27 @@ const RunSchema = new mongoose.Schema(
         enum: [
             "queued",
             "running",
+            "awaiting_approval",
             "completed",
             "failed",
+            "rejected",
         ],
         default: "queued",
     },
+
+    reviews: [
+        {
+            action: {
+                type: String,
+                enum: ["approved", "retry", "rejected"],
+            },
+            feedback: String,
+            timestamp: {
+                type: Date,
+                default: Date.now,
+            },
+        },
+    ],
 
     startedAt: Date,
     completedAt: Date,

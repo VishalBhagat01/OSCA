@@ -4,6 +4,7 @@ from pathlib import Path
 # pyrefly: ignore [missing-import]
 from git import Repo
 
+from agents.nodes import state
 from agents.utils import retry_trace
 from agents.models.patch import FileEdit
 from agents.nodes.state import AgentState
@@ -26,9 +27,12 @@ def clean_code_content(content: str) -> str:
 def generate_file_edit(
     state: AgentState,
     file_data: dict,
-    feedback: str,
+    execution_feedback: str,
+    human_feedback: str | None,
+    previous_result: dict | None,
     repository_context: dict,
 ) -> FileEdit:
+    
     plan = state.get("plan", {})
     file_path = file_data["path"]
 
@@ -37,6 +41,20 @@ def generate_file_edit(
         for item in plan.get("likely_files_to_change", [])
     ]
     is_likely = file_path in likely_files
+
+    previous_patch = ""
+
+    if previous_result:
+        proposed_patch = previous_result.get("proposed_patch", {})
+        previous_patch = proposed_patch.get("diff") or proposed_patch.get("patch", "")
+
+    previous_analysis = {}
+
+    if previous_result:
+        previous_analysis = previous_result.get(
+            "analysis",
+            {}
+        )
 
     prompt = f"""
         You are an open-source code repair agent.
@@ -49,8 +67,17 @@ def generate_file_edit(
         PLANNER ANALYSIS:
         {json.dumps(plan, indent=2)}
 
+        PREVIOUS ANALYSIS:
+        {json.dumps(previous_analysis, indent=2)}
+
+        PREVIOUS PATCH:
+        {previous_patch}
+
+        HUMAN REVIEW FEEDBACK:
+        {human_feedback}
+
         PREVIOUS EXECUTION FAILURE:
-        {feedback}
+        {execution_feedback}
 
         RELATED REPOSITORY FILES:
         {json.dumps(repository_context, indent=2)}
@@ -77,6 +104,12 @@ def generate_file_edit(
         - If previous failure indicates an acceptance error (e.g. "returned a string instead of raising an exception" or "returned wrong message"), OVERRIDE any conflicting planner wording. Update both implementation code and test code to strictly match what ORIGINAL ISSUE / PREVIOUS EXECUTION FAILURE required!
         - If previous failure states "Patch must modify at least one non-test/source file", and this TARGET FILE is a source file, you MUST set `should_modify` to true!
         - Ensure test file assertions match the updated implementation code so pytest passes.
+
+        If HUMAN REVIEW FEEDBACK is present:
+        - Treat it as the highest-priority instruction.
+        - Preserve all correct changes from the previous patch.
+        - Modify only the parts necessary to satisfy the review.
+        - Do not rewrite unrelated code.
 
         OUTPUT RULES:
         - Return the complete updated source code in the `content` field.
@@ -107,11 +140,14 @@ def generate_patch(state: AgentState) -> dict:
 
     retry_trace = state.get("retry_trace", [])
 
-    feedback = (
+    execution_feedback = (
         retry_trace[-1].get("error", "")
         if retry_trace
         else ""
     )
+
+    human_feedback = state.get("feedback")
+    previous_result = state.get("previous_result")
 
     try:
         repo.git.reset("--hard", "HEAD")
@@ -147,7 +183,9 @@ def generate_patch(state: AgentState) -> dict:
             edit = generate_file_edit(
                 state=state,
                 file_data=file_context,
-                feedback=feedback,
+                execution_feedback=execution_feedback,
+                human_feedback=human_feedback,
+                previous_result=previous_result,
                 repository_context=repository_context,
             )
 

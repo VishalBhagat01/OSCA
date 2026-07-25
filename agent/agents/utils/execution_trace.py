@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import requests
 
 
 def add_execution_event(
@@ -12,16 +13,27 @@ def add_execution_event(
         state.get("execution_trace", [])
     )
 
-    trace.append(
-        {
-            "node": node,
-            "status": status,
-            "message": message,
-            "details": details or {},
-            "timestamp": datetime.now(
-                timezone.utc
-            ).isoformat(),
-        }
-    )
+    event = {
+        "node": node,
+        "status": status,
+        "message": message,
+        "details": details or {},
+        "timestamp": datetime.now(
+            timezone.utc
+        ).isoformat(),
+    }
+
+    trace.append(event)
+
+    callback_url = state.get("callback_url")
+    if callback_url and isinstance(callback_url, str):
+        try:
+            requests.post(
+                callback_url,
+                json={"event": event},
+                timeout=3.0,
+            )
+        except Exception as err:
+            print(f"[ExecutionTrace] Could not post event to callback: {err}")
 
     return trace

@@ -14,18 +14,31 @@ async function processRun(io,runId,payload) {
             status: "running",
         });
 
-        const result = await runAgent(payload);
+        const port = process.env.PORT || 5000;
+        const baseUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
+        const callbackUrl = `${baseUrl}/api/runs/${runId}/events`;
+
+        const result = await runAgent({
+            ...payload,
+            callback_url: callbackUrl,
+        });
+
         const succeeded = result?.proposed_patch?.can_generate_patch === true;
-        const status = succeeded ? "completed" : "failed";
+        const status = succeeded ? "awaiting_approval" : "failed";
         const error = succeeded
             ? undefined
             : result?.proposed_patch?.reason || "Run did not satisfy acceptance criteria.";
+
+        const currentRun = await Run.findById(runId);
+        const finalTrace = (currentRun?.executionTrace && currentRun.executionTrace.length > 0)
+            ? currentRun.executionTrace
+            : (result?.execution_trace || []);
 
         await Run.findByIdAndUpdate(runId, {
             status,
             completedAt: new Date(),
             result,
-            executionTrace: result.execution_trace || [],
+            executionTrace: finalTrace,
             ...(error ? { error } : {}),
         });
 

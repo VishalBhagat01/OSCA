@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from typing import List
+from typing import Any, List , Optional
 
 from git_utils.repo_info import repo_info
 from git_utils.clone_repo import clone_or_update_repo
@@ -23,6 +23,10 @@ class AnalyzeIssueRequest(BaseModel):
     issue_body: str = ""
     labels: List[str] = Field(default_factory=list)
     comments: List[str] = Field(default_factory=list)
+    retry: bool = False
+    feedback: Optional[str] = None
+    previous_result: Optional[Any] = None
+    callback_url: Optional[str] = None
 
 class IssueDetailsRequest(BaseModel):
     owner: str
@@ -92,7 +96,11 @@ def collect_context(data: AnalyzeIssueRequest):
         codebase={
             **codebase_data,
             "repo_path": repo_path
-        }
+        },
+        retry=data.retry,
+        feedback=data.feedback,
+        previous_result=data.previous_result,
+        callback_url=data.callback_url,
     )
 
     # Do not return complete file contents yet.

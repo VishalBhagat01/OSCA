@@ -31,6 +31,25 @@ def build_prompt(state: AgentState) -> dict:
         for file in codebase.get("relevant_files", [])[:5]
     ]
 
+    human_feedback = state.get("feedback")
+    previous_result = state.get("previous_result")
+    previous_analysis = (
+        previous_result.get("analysis", {})
+        if isinstance(previous_result, dict)
+        else {}
+    )
+
+    feedback_section = (
+        f"\nHUMAN REVIEW FEEDBACK:\n{human_feedback}\n"
+        if human_feedback
+        else ""
+    )
+    previous_analysis_section = (
+        f"\nPREVIOUS ANALYSIS:\n{json.dumps(previous_analysis, indent=2)}\n"
+        if previous_analysis
+        else ""
+    )
+
     prompt = f"""
 You are an open-source issue planning agent.
 
@@ -68,16 +87,17 @@ Use exactly this schema:
 
 Issue:
 {json.dumps(issue, indent=2)}
-
+{previous_analysis_section}{feedback_section}
 Retrieved repository files:
 {json.dumps(files, indent=2)}
 
 Rules:
+- If HUMAN REVIEW FEEDBACK is present, incorporate the human reviewer's instructions into your root cause hypothesis, implementation_plan, and likely_files_to_change.
 - If the issue asks for rationale, policy, migration advice, or design discussion, use "discussion".
 - For "discussion" or "needs_clarification", keep implementation_plan and test_plan empty.
 - Mention only files present in Retrieved repository files.
 - For a clear bug, include source-file and test-file changes when tests are available.
-- The implementation_plan must adhere strictly to the exact requirement, exception type (e.g., CustomException vs ValueError), exception message, or return value specified in the Issue. Do not substitute or invent alternative error handling.
+- The implementation_plan must adhere strictly to the exact requirement, exception type (e.g., CustomException vs ValueError), exception message, or return value specified in the Issue and HUMAN REVIEW FEEDBACK.
 - Start with [ and end with ].
 """
 

@@ -21,6 +21,7 @@ async function processRun(io,runId,payload) {
         const result = await runAgent({
             ...payload,
             callback_url: callbackUrl,
+            callback_token: process.env.AGENT_CALLBACK_TOKEN,
         });
 
         const succeeded = result?.proposed_patch?.can_generate_patch === true;

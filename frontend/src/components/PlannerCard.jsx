@@ -73,7 +73,7 @@ const PlannerCard = ({ analysis }) => {
                 </section>
 
                 {/* Files */}
-                {analysis.affected_files?.length > 0 && (
+                {analysis.likely_files_to_change?.length > 0 && (
 
                     <section>
 
@@ -89,13 +89,13 @@ const PlannerCard = ({ analysis }) => {
 
                         <div className="space-y-2">
 
-                            {analysis.affected_files.map((file, index) => (
+                            {analysis.likely_files_to_change.map((file, index) => (
 
                                 <div
                                     key={index}
                                     className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm text-green-400"
                                 >
-                                    {file}
+                                    {typeof file === "string" ? file : file.path}
                                 </div>
 
                             ))}

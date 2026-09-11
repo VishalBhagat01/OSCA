@@ -1,6 +1,7 @@
 from git import Repo
 import os
 import shutil
+import hashlib
 
 
 def get_repo_name(repo_url: str) -> str:
@@ -9,6 +10,7 @@ def get_repo_name(repo_url: str) -> str:
 
 def clone_or_update_repo(repo_url: str) -> str:
     repo_name = get_repo_name(repo_url)
+    repo_key = hashlib.sha256(repo_url.encode("utf-8")).hexdigest()[:12]
 
     base_dir = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
@@ -17,7 +19,8 @@ def clone_or_update_repo(repo_url: str) -> str:
 
     os.makedirs(base_dir, exist_ok=True)
 
-    repo_path = os.path.join(base_dir, repo_name)
+    # Keep repositories with identical names (but different owners) isolated.
+    repo_path = os.path.join(base_dir, f"{repo_name}-{repo_key}")
 
     # First time: clone repository
     if not os.path.exists(repo_path):

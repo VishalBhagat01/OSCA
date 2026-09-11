@@ -89,6 +89,14 @@ const RunCard = ({ run }) => {
                 </p>
             </InfoCard>
 
+            {run.pullRequest?.url && (
+                <InfoCard title="Pull Request" icon={<GitBranch size={18} />}>
+                    <a className="text-sm font-medium text-blue-400 hover:text-blue-300" href={run.pullRequest.url} target="_blank" rel="noreferrer">
+                        PR #{run.pullRequest.number}
+                    </a>
+                </InfoCard>
+            )}
+
         </div>
     );
 };

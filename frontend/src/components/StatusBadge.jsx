@@ -11,6 +11,11 @@ const statusStyles = {
             "border-blue-500/30 bg-blue-500/10 text-blue-300",
     },
 
+    publishing: {
+        dot: "bg-cyan-400 animate-pulse",
+        badge: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
+    },
+
     awaiting_approval: {
         dot: "bg-violet-400",
         badge:

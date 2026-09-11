@@ -8,6 +8,7 @@ def analyze_issue(
     feedback=None,
     previous_result=None,
     callback_url=None,
+    callback_token=None,
 ):
     relevant_files = codebase.get("relevant_files", [])
 
@@ -34,6 +35,7 @@ def analyze_issue(
             "feedback": feedback,
             "previous_result": previous_result,
             "callback_url": callback_url,
+            "callback_token": callback_token,
 
             "retry_count": 0,
             "max_retries": 4,

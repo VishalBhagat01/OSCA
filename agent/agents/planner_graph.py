@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph, END
 
 from agents.nodes.state import AgentState
-from agents.nodes.planner import planner_node
+from agents.nodes.planner import planner_node, should_generate_patch
 from agents.nodes.patch_generator import patch_generator_node
 from agents.nodes.validators import validation_node
 from agents.nodes.patch_applier import patch_applier_node
@@ -78,7 +78,11 @@ def create_planner_graph():
 
     graph.set_entry_point("planner")
 
-    graph.add_edge("planner","patch_generator")
+    graph.add_conditional_edges(
+        "planner",
+        should_generate_patch,
+        {"generate_patch": "patch_generator", "finish": END},
+    )
     graph.add_edge("patch_generator","validator")
 
     graph.add_conditional_edges("validator",route_after_validation,

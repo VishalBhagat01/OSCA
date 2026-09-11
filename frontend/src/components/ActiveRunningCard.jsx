@@ -1,7 +1,7 @@
 import { Loader2, Sparkles, MessageSquare, Clock, ArrowRight } from "lucide-react";
 
 const ActiveRunningCard = ({ run }) => {
-    if (!run || (run.status !== "running" && run.status !== "queued")) return null;
+    if (!run || !["running", "queued", "publishing"].includes(run.status)) return null;
 
     const reviews = run.reviews || [];
     const retryReviews = reviews.filter((r) => r.action === "retry");
@@ -27,7 +27,7 @@ const ActiveRunningCard = ({ run }) => {
                                 {latestRetry ? "Agent Retrying with Human Feedback" : "Agent Execution in Progress"}
                             </h2>
                             <span className="inline-flex items-center rounded-full bg-violet-500/20 px-2.5 py-0.5 text-xs font-semibold text-violet-300 border border-violet-500/30 animate-pulse">
-                                {run.status === "queued" ? "Queued" : "Running..."}
+                                {run.status === "queued" ? "Queued" : run.status === "publishing" ? "Creating pull request..." : "Running..."}
                             </span>
                         </div>
                         <p className="mt-1 text-sm text-zinc-400">

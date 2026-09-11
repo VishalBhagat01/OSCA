@@ -5,3 +5,7 @@ requests
 PyGithub
 gitpython
 GitPython
+langchain-ollama
+langchain-groq
+pydantic
+pytest

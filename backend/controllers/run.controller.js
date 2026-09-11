@@ -1,5 +1,6 @@
 const Run = require("../models/run_schema");
 const { processRun } = require("../services/runProcessor");
+const { getIssueDetails, createPullRequest } = require("../services/github.service");
 const mongoose = require("mongoose");
 
 exports.createRun = async (req, res) => {
@@ -9,12 +10,7 @@ exports.createRun = async (req, res) => {
         const {
             repoUrl,
             issueNumber,
-            issueBody = "",
-            labels = [],
-            comments = [],
         } = req.body;
-
-        const issueTitle = req.body.issueTitle || `Issue #${issueNumber}`;
 
         if (!repoUrl || !issueNumber) {
             return res.status(400).json({
@@ -23,14 +19,22 @@ exports.createRun = async (req, res) => {
             });
         }
 
+        if (!Number.isInteger(Number(issueNumber)) || Number(issueNumber) <= 0) {
+            return res.status(400).json({ success: false, message: "issueNumber must be a positive integer." });
+        }
+
+        const githubIssue = await getIssueDetails(repoUrl, Number(issueNumber));
+
         const run = await Run.create({
             repository: {
                 url: repoUrl,
             },
             issue: {
                 number: issueNumber,
-                title: issueTitle,
-                body: issueBody,
+                title: githubIssue.title,
+                body: githubIssue.body,
+                labels: githubIssue.labels,
+                comments: githubIssue.comments,
             },
             status: "queued",
         });
@@ -41,10 +45,10 @@ exports.createRun = async (req, res) => {
             {
                 repo_url: repoUrl,
                 issue_number: issueNumber,
-                issue_title: issueTitle,
-                issue_body: issueBody,
-                labels,
-                comments,
+                issue_title: githubIssue.title,
+                issue_body: githubIssue.body,
+                labels: githubIssue.labels,
+                comments: githubIssue.comments,
             }
         );
 
@@ -184,7 +188,21 @@ exports.approveRun = async (req, res) => {
             });
         }
 
+        const diff = run.result?.proposed_patch?.diff;
+        if (!diff) {
+            return res.status(400).json({ success: false, message: "No approved patch is available." });
+        }
+
+        run.status = "publishing";
+        run.reviews.push({ action: "approved", timestamp: new Date() });
+        await run.save();
+
+        io.emit("run:update", { runId: run._id.toString(), status: "publishing" });
+
+        const pullRequest = await createPullRequest(run, diff);
         run.status = "completed";
+        run.pullRequest = pullRequest;
+        run.completedAt = new Date();
         await run.save();
 
         io.emit("run:update", {
@@ -227,6 +245,7 @@ exports.rejectRun = async (req, res) => {
         }
 
         run.status = "rejected";
+        run.reviews.push({ action: "rejected", timestamp: new Date() });
         await run.save();
 
         io.emit("run:update", {

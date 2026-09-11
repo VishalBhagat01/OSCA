@@ -10,6 +10,8 @@ const RunSchema = new mongoose.Schema(
         number: Number,
         title: String,
         body: String,
+        labels: [String],
+        comments: [String],
     },
 
     status: {
@@ -17,6 +19,7 @@ const RunSchema = new mongoose.Schema(
         enum: [
             "queued",
             "running",
+            "publishing",
             "awaiting_approval",
             "completed",
             "failed",
@@ -45,6 +48,13 @@ const RunSchema = new mongoose.Schema(
     result: mongoose.Schema.Types.Mixed,
 
     error: String,
+
+    pullRequest: {
+        number: Number,
+        url: String,
+        branch: String,
+        commit: String,
+    },
 
     executionTrace: [
         mongoose.Schema.Types.Mixed

@@ -1,4 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from urllib.parse import urlparse
+import os
 from pydantic import BaseModel, Field
 from typing import Any, List , Optional
 
@@ -10,6 +14,21 @@ from agents.issue_analyzer import analyze_issue
 from git_utils.issue_details import get_issue_details
 
 app = FastAPI()
+allowed_origins = [origin.strip() for origin in os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").split(",")]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_methods=["GET", "POST"],
+    allow_headers=["content-type", "x-api-key"],
+)
+
+
+@app.middleware("http")
+async def require_agent_api_key(request: Request, call_next):
+    configured_key = os.getenv("AGENT_API_KEY")
+    if configured_key and request.url.path != "/" and request.headers.get("x-api-key") != configured_key:
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized."})
+    return await call_next(request)
 
 
 class RepoURL(BaseModel):
@@ -27,6 +46,7 @@ class AnalyzeIssueRequest(BaseModel):
     feedback: Optional[str] = None
     previous_result: Optional[Any] = None
     callback_url: Optional[str] = None
+    callback_token: Optional[str] = None
 
 class IssueDetailsRequest(BaseModel):
     owner: str
@@ -58,6 +78,11 @@ def issue_details(payload: IssueDetailsRequest):
 
 
 def collect_context(data: AnalyzeIssueRequest):
+    if data.callback_url:
+        parsed_callback = urlparse(data.callback_url)
+        allowed_hosts = {host.strip() for host in os.getenv("CALLBACK_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")}
+        if parsed_callback.scheme not in {"http", "https"} or parsed_callback.hostname not in allowed_hosts:
+            raise ValueError("callback_url host is not allowed")
     # 1. Clone repo first time, otherwise update cached repo
     repo_path = clone_or_update_repo(data.repo_url)
 
@@ -101,6 +126,7 @@ def collect_context(data: AnalyzeIssueRequest):
         feedback=data.feedback,
         previous_result=data.previous_result,
         callback_url=data.callback_url,
+        callback_token=data.callback_token,
     )
 
     # Do not return complete file contents yet.

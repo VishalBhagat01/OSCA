@@ -35,3 +35,4 @@ class AgentState(TypedDict, total=False):
     feedback: str | None
     previous_result: dict | None
     callback_url: str | None
+    callback_token: str | None

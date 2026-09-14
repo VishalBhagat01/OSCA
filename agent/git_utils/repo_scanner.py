@@ -1,12 +1,13 @@
 import os
 
+
 IMPORTANT_FILE_NAMES = {
     "README.md",
     "CONTRIBUTING.md",
     "package.json",
     "requirements.txt",
     "pyproject.toml",
-    "Dockerfile"
+    "Dockerfile",
 }
 
 IGNORE_DIRS = {
@@ -16,7 +17,13 @@ IGNORE_DIRS = {
     ".venv",
     "__pycache__",
     "dist",
-    "build"
+    "build",
+    ".idea",
+    ".vscode",
+    ".env",
+    ".tox",
+    "eggs",
+    ".eggs",
 }
 
 
@@ -39,13 +46,13 @@ def scan_repository(repo_path: str):
                         full_path,
                         "r",
                         encoding="utf-8",
-                        errors="ignore"
+                        errors="ignore",
                     ) as file:
-                        important_files[relative_path] = file.read()[:10000]
+                        important_files[relative_path] = file.read(10_000)
                 except Exception:
                     pass
 
     return {
         "file_tree": file_tree,
-        "important_files": important_files
+        "important_files": important_files,
     }

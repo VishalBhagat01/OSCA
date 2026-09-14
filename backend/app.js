@@ -1,30 +1,35 @@
+"use strict";
+
 const express = require("express");
 const cors = require("cors");
+const compression = require("compression");
+const helmet = require("helmet");
 
 const runRoutes = require("./routes/run.route");
 const { requireApiKey } = require("./middleware/auth");
-
+const { expressCorsOptions } = require("./config/cors");
 
 const app = express();
 
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
-    .split(",")
-    .map((origin) => origin.trim());
-
-app.use(cors({
-    origin(origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-        return callback(new Error("Origin is not allowed by CORS."));
-    },
-    methods: ["GET", "POST", "DELETE"],
-}));
-app.use(express.json());
+app.use(helmet());
+app.use(compression());
+app.use(cors(expressCorsOptions));
+app.use(express.json({ limit: "2mb" }));
 
 app.use("/api/runs", requireApiKey, runRoutes);
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
     res.json({
-        message: "OSA Backend Running"
+        message: "OSA Backend Running",
+    });
+});
+
+// Centralized error handler
+app.use((err, _req, res, _next) => {
+    console.error("Unhandled error:", err);
+    res.status(err.status || err.statusCode || 500).json({
+        success: false,
+        message: err.message || "Internal Server Error",
     });
 });
 

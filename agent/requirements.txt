@@ -1,11 +1,11 @@
 langgraph
-fastapi 
-uvicorn 
-requests 
+fastapi
+uvicorn
+requests
 PyGithub
 gitpython
-GitPython
 langchain-ollama
-langchain-groq
+langchain-google-genai
 pydantic
 pytest
+python-dotenv

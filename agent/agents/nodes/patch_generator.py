@@ -1,17 +1,35 @@
+"""Patch generator node: synthesizes source code changes across target files using LLM."""
+
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # pyrefly: ignore [missing-import]
 from git import Repo
 
-from agents.nodes import state
-from agents.utils import retry_trace
 from agents.models.patch import FileEdit
 from agents.nodes.state import AgentState
+from agents.nodes.validators import is_test_file
+from llm.llm_provider import get_provider_name
 from llm.ollama_client import llm
-from agents.utils.execution_trace import add_execution_event
+from agents.utils.execution_trace import add_execution_event, emit_trace_event
+from prompts.patch_prompts import build_patch_prompt
+from constants import (
+    NODE_PATCH_GENERATOR,
+    STATUS_RUNNING,
+    STATUS_SUCCESS,
+    STATUS_FAILED,
+)
 
-structured_llm = llm.with_structured_output(FileEdit)
+_structured_llm = None
+
+
+def get_structured_llm():
+    """Lazily initialize structured output model to avoid import-time side effects."""
+    global _structured_llm
+    if _structured_llm is None:
+        _structured_llm = llm.with_structured_output(FileEdit)
+    return _structured_llm
 
 
 def clean_code_content(content: str) -> str:
@@ -32,7 +50,7 @@ def generate_file_edit(
     previous_result: dict | None,
     repository_context: dict,
 ) -> FileEdit:
-    
+
     plan = state.get("plan", {})
     file_path = file_data["path"]
 
@@ -43,109 +61,80 @@ def generate_file_edit(
     is_likely = file_path in likely_files
 
     previous_patch = ""
-
-    if previous_result:
+    if previous_result and state.get("retry"):
         proposed_patch = previous_result.get("proposed_patch", {})
-        previous_patch = proposed_patch.get("diff") or proposed_patch.get("patch", "")
+        diff = proposed_patch.get("diff") or proposed_patch.get("patch", "")
+        # Compact previous patch diff to save prompt tokens
+        previous_patch = diff[:800] + ("\n... [truncated]" if len(diff) > 800 else "")
 
-    previous_analysis = {}
+    # Compact issue representation (strips raw comment bloat)
+    issue = state.get("issue", {})
+    compact_issue = {
+        "number": issue.get("number"),
+        "title": issue.get("title", ""),
+        "body": (issue.get("body") or "")[:1000],
+    }
 
-    if previous_result:
-        previous_analysis = previous_result.get(
-            "analysis",
-            {}
-        )
+    # Compact plan (omits redundant previous_analysis)
+    compact_plan = {
+        "summary": plan.get("summary", ""),
+        "root_cause": plan.get("root_cause_hypothesis", ""),
+        "implementation_plan": plan.get("implementation_plan", [])[:4],
+        "test_plan": plan.get("test_plan", [])[:2],
+    }
 
-    prompt = f"""
-        You are an open-source code repair agent.
+    current_code = file_data.get("content", "")
 
-        Your task is to return the COMPLETE updated content of exactly one source file.
+    # Lightweight list of available context filenames
+    other_files = [p for p in repository_context.keys() if p != file_path][:5]
 
-        ORIGINAL ISSUE:
-        {json.dumps(state.get("issue", {}), indent=2)}
+    prompt = build_patch_prompt(
+        compact_issue=compact_issue,
+        compact_plan=compact_plan,
+        previous_patch=previous_patch,
+        human_feedback=human_feedback,
+        execution_feedback=execution_feedback,
+        other_files=other_files,
+        file_path=file_path,
+        current_code=current_code,
+        is_likely=is_likely,
+    )
 
-        PLANNER ANALYSIS:
-        {json.dumps(plan, indent=2)}
+    return get_structured_llm().invoke(prompt)
 
-        PREVIOUS ANALYSIS:
-        {json.dumps(previous_analysis, indent=2)}
 
-        PREVIOUS PATCH:
-        {previous_patch}
+def _process_single_file(
+    state: AgentState,
+    file_data: dict,
+    execution_feedback: str,
+    human_feedback: str | None,
+    previous_result: dict | None,
+    repository_context: dict,
+) -> tuple[str, str | None]:
+    file_path = file_data["path"]
+    edit = generate_file_edit(
+        state=state,
+        file_data=file_data,
+        execution_feedback=execution_feedback,
+        human_feedback=human_feedback,
+        previous_result=previous_result,
+        repository_context=repository_context,
+    )
 
-        HUMAN REVIEW FEEDBACK:
-        {human_feedback}
+    if not edit.should_modify:
+        return file_path, None
 
-        PREVIOUS EXECUTION FAILURE:
-        {execution_feedback}
-
-        RELATED REPOSITORY FILES:
-        {json.dumps(repository_context, indent=2)}
-
-        TARGET FILE:
-        {file_path}
-
-        CURRENT FILE CONTENT:
-        {json.dumps(file_data.get("content", ""))}
-
-        ROLE OF THIS FILE:
-        - Target File: {file_path}
-        - Listed in likely_files_to_change: {is_likely}
-
-        INSTRUCTIONS:
-        - Follow the ORIGINAL ISSUE exactly.
-        - The ORIGINAL ISSUE is the authoritative specification.
-        - If TARGET FILE is a core source/implementation file (not a test file) and contains the logic bug, you MUST set `should_modify` to true and modify the source code to fix the bug!
-        - If TARGET FILE is a test file and a test_plan exists, you MUST set `should_modify` to true and add/update test cases!
-        - Preserve exact exception types requested by the issue.
-        - Preserve exact exception messages requested by the issue.
-        - Never invent custom exceptions unless explicitly requested.
-        - Use PREVIOUS EXECUTION FAILURE to correct the previous attempt.
-        - If previous failure indicates an acceptance error (e.g. "returned a string instead of raising an exception" or "returned wrong message"), OVERRIDE any conflicting planner wording. Update both implementation code and test code to strictly match what ORIGINAL ISSUE / PREVIOUS EXECUTION FAILURE required!
-        - If previous failure states "Patch must modify at least one non-test/source file", and this TARGET FILE is a source file, you MUST set `should_modify` to true!
-        - Ensure test file assertions match the updated implementation code so pytest passes.
-
-        If HUMAN REVIEW FEEDBACK is present:
-        - Treat it as the highest-priority instruction.
-        - Preserve all correct changes from the previous patch.
-        - Modify only the parts necessary to satisfy the review.
-        - Do not rewrite unrelated code.
-
-        OUTPUT RULES:
-        - Return the complete updated source code in the `content` field.
-        - `content` must contain source code only.
-        - Do not include markdown code fences.
-        - Do not include XML tags.
-        - Do not include explanations inside `content`.
-        - Do not return a unified diff.
-        - Set `should_modify` to true when the target file requires changes.
-        - Set `should_modify` to false only when no modification is required.
-        """
-
-    return structured_llm.invoke(prompt)
+    return file_path, clean_code_content(edit.content)
 
 
 def generate_patch(state: AgentState) -> dict:
     repo_path = Path(state["repo_path"])
-    repo = Repo(repo_path)
+    repo = Repo(repo_path, search_parent_directories=False)
 
-    allowed_files = set(
-        state.get("selected_files", [])
-    )
-
-    relevant_files = state.get(
-        "codebase",
-        {}
-    ).get("relevant_files", [])
-
+    allowed_files = set(state.get("selected_files", []))
+    relevant_files = state.get("codebase", {}).get("relevant_files", [])
     retry_trace = state.get("retry_trace", [])
-
-    execution_feedback = (
-        retry_trace[-1].get("error", "")
-        if retry_trace
-        else ""
-    )
-
+    execution_feedback = retry_trace[-1].get("error", "") if retry_trace else ""
     human_feedback = state.get("feedback")
     previous_result = state.get("previous_result")
 
@@ -153,124 +142,155 @@ def generate_patch(state: AgentState) -> dict:
         repo.git.reset("--hard", "HEAD")
 
         repository_context = {
-            file_data["path"]: (
-                repo_path / file_data["path"]
-            ).read_text(
-                encoding="utf-8"
-            )
+            file_data["path"]: (repo_path / file_data["path"]).read_text(encoding="utf-8")
             for file_data in relevant_files
-            if (
-                repo_path / file_data["path"]
-            ).is_file()
+            if (repo_path / file_data["path"]).is_file()
         }
 
-        for file_data in relevant_files:
-            file_path = file_data["path"]
+        plan = state.get("plan", {})
+        likely_items = plan.get("likely_files_to_change", [])
+        likely_file_paths = set()
+        for item in likely_items:
+            if isinstance(item, dict) and item.get("path"):
+                likely_file_paths.add(item["path"].replace("\\", "/").strip().lower())
+            elif isinstance(item, str) and item.strip():
+                likely_file_paths.add(item.replace("\\", "/").strip().lower())
 
-            if file_path not in allowed_files:
+        # Segregate allowed source files and test files
+        source_candidates = []
+        test_candidates = []
+
+        for fd in relevant_files:
+            if fd["path"] not in allowed_files:
                 continue
+            p = fd["path"].replace("\\", "/").strip().lower()
+            is_likely = p in likely_file_paths
+            if is_test_file(fd["path"]):
+                test_candidates.append((is_likely, fd))
+            else:
+                source_candidates.append((is_likely, fd))
 
-            current_content = repository_context.get(
-                file_path,
-                ""
-            )
+        # Prioritize likely files
+        source_candidates.sort(key=lambda x: x[0], reverse=True)
+        test_candidates.sort(key=lambda x: x[0], reverse=True)
 
-            file_context = {
-                **file_data,
-                "content": current_content,
-            }
+        # Select at most 1 primary source file and 1 test file (if test plan exists)
+        files_to_process = []
+        if source_candidates:
+            files_to_process.append(source_candidates[0][1])
 
-            edit = generate_file_edit(
-                state=state,
-                file_data=file_context,
-                execution_feedback=execution_feedback,
-                human_feedback=human_feedback,
-                previous_result=previous_result,
-                repository_context=repository_context,
-            )
+        test_plan = plan.get("test_plan", [])
+        if test_plan and test_candidates:
+            files_to_process.append(test_candidates[0][1])
 
-            if not edit.should_modify:
+        # Fallback if candidates were empty
+        if not files_to_process:
+            files_to_process = [
+                fd for fd in relevant_files if fd["path"] in allowed_files
+            ][:2]
+
+        # Concurrency: Sequential for Gemini to avoid bursting the 250k TPM limit
+        is_gemini = get_provider_name() == "gemini"
+        max_workers = 1 if is_gemini else min(len(files_to_process), 2)
+
+        results: dict[str, str | None] = {}
+        if max_workers == 1:
+            for file_data in files_to_process:
+                file_path, content = _process_single_file(
+                    state,
+                    file_data,
+                    execution_feedback,
+                    human_feedback,
+                    previous_result,
+                    repository_context,
+                )
+                results[file_path] = content
+        else:
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = {
+                    pool.submit(
+                        _process_single_file,
+                        state,
+                        file_data,
+                        execution_feedback,
+                        human_feedback,
+                        previous_result,
+                        repository_context,
+                    ): file_data["path"]
+                    for file_data in files_to_process
+                }
+                for future in as_completed(futures):
+                    file_path, content = future.result()
+                    results[file_path] = content
+
+        # Apply edits sequentially
+        for file_path, content in results.items():
+            if content is None:
                 continue
-
-            cleaned_code = clean_code_content(edit.content)
             target_file = repo_path / file_path
-
-            target_file.write_text(
-                cleaned_code,
-                encoding="utf-8",
-            )
+            target_file.write_text(content, encoding="utf-8")
 
         diff = repo.git.diff()
 
         return {
             "patch": diff,
             "patch_generation_error": (
-                None
-                if diff
-                else "Model generated no file changes."
+                None if diff else "Model generated no file changes."
             ),
         }
 
     except Exception as error:
         return {
             "patch": "",
-            "patch_generation_error": (
-                f"Patch generation failed: {error}"
-            ),
+            "patch_generation_error": f"Patch generation failed: {error}",
         }
 
     finally:
-        repo.git.reset("--hard", "HEAD")
+        try:
+            repo.git.reset("--hard", "HEAD")
+        except Exception:
+            pass
 
 
 def patch_generator_node(state: AgentState) -> dict:
-    patch_state = generate_patch(state)
+    current_retry = state.get("retry_count", 0) + 1
 
-    patch = patch_state.get("patch", "")
-    patch_error = patch_state.get(
-        "patch_generation_error"
+    emit_trace_event(
+        state,
+        node=NODE_PATCH_GENERATOR,
+        status=STATUS_RUNNING,
+        message=f"Synthesizing code patch (attempt {current_retry})...",
     )
 
-    updated_state = {
-        **state,
-        **patch_state,
-        "retry_count": state.get(
-            "retry_count",
-            0
-        ) + 1,
-    }
+    result = generate_patch(state)
+    diff = result.get("patch", "")
+    error = result.get("patch_generation_error")
 
-    if patch:
+    if error:
         execution_trace = add_execution_event(
-            updated_state,
-            node="patch_generator",
-            status="success",
-            message="Patch generated successfully.",
-            details={
-                "patch_length": len(patch),
-                "attempt": updated_state[
-                    "retry_count"
-                ],
-            },
+            state,
+            node=NODE_PATCH_GENERATOR,
+            status=STATUS_FAILED,
+            message=f"Patch generation failed on attempt {current_retry}: {error}",
+            details={"error": error, "retry_count": current_retry},
         )
-
     else:
+        changed = [
+            line[6:].strip()
+            for line in diff.splitlines()
+            if line.startswith("+++ b/")
+        ]
         execution_trace = add_execution_event(
-            updated_state,
-            node="patch_generator",
-            status="failed",
-            message=(
-                patch_error
-                or "Patch generation failed."
-            ),
-            details={
-                "attempt": updated_state[
-                    "retry_count"
-                ],
-            },
+            state,
+            node=NODE_PATCH_GENERATOR,
+            status=STATUS_SUCCESS,
+            message=f"Successfully synthesized patch across {len(changed)} file(s) on attempt {current_retry}.",
+            details={"changed_files": changed, "retry_count": current_retry},
         )
 
     return {
-        **updated_state,
+        "patch": diff,
+        "patch_generation_error": error,
+        "retry_count": current_retry,
         "execution_trace": execution_trace,
     }

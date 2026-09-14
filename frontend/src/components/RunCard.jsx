@@ -1,104 +1,120 @@
 import {
-    GitBranch,
-    Hash,
-    Clock3,
-    CalendarDays,
+  GitBranch,
+  Hash,
+  Clock3,
+  CalendarDays,
+  ExternalLink,
 } from "lucide-react";
-
 import InfoCard from "./InfoCard";
 import StatusBadge from "./StatusBadge";
+import useLiveNow from "../hooks/useLiveNow";
+import { formatDate } from "../utils/formatters";
 
-const formatDate = (date) => {
-    if (!date) return "--";
+export const RunCard = ({ run }) => {
+  const isLive = ["running", "queued", "publishing"].includes(run?.status);
+  const now = useLiveNow(isLive);
 
-    return new Date(date).toLocaleString();
-};
+  if (!run) return null;
 
-const calculateDuration = (start, end) => {
-    if (!start) return "--";
+  const calculateDuration = () => {
+    if (!run.createdAt) return "--";
+    const startTime = new Date(run.createdAt).getTime();
+    const endTime = run.completedAt
+      ? new Date(run.completedAt).getTime()
+      : now > 0
+      ? now
+      : startTime;
 
-    const startTime = new Date(start);
-    const endTime = end ? new Date(end) : new Date();
-
-    const diff = Math.floor((endTime - startTime) / 1000);
-
+    const diff = Math.max(0, Math.floor((endTime - startTime) / 1000));
     const minutes = Math.floor(diff / 60);
     const seconds = diff % 60;
 
-    return `${minutes}m ${seconds}s`;
-};
+    return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+  };
 
-const RunCard = ({ run }) => {
-    if (!run) return null;
-
-    return (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-
-            <InfoCard
-                title="Repository"
-                icon={<GitBranch size={18} />}
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Repository */}
+      <InfoCard
+        title="Target Repository"
+        icon={<GitBranch className="h-4 w-4 text-indigo-400" />}
+      >
+        <div className="space-y-1">
+          <p className="break-all font-mono text-xs sm:text-sm font-semibold text-white">
+            {run.repository?.url?.replace("https://github.com/", "") ||
+              run.repository?.url}
+          </p>
+          {run.repository?.url && (
+            <a
+              href={run.repository.url}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-indigo-400 transition"
             >
-                <p className="break-all text-sm font-medium text-white">
-                    {run.repository?.url}
-                </p>
-            </InfoCard>
-
-            <InfoCard
-                title="Issue"
-                icon={<Hash size={18} />}
-            >
-                <p className="text-xl font-semibold text-white">
-                    #{run.issue?.number}
-                </p>
-
-                <p className="mt-2 text-sm text-zinc-400">
-                    {run.issue?.title}
-                </p>
-            </InfoCard>
-
-            <InfoCard
-                title="Status"
-                icon={<CalendarDays size={18} />}
-            >
-                <StatusBadge status={run.status} />
-
-                <div className="mt-4">
-                    <p className="text-xs uppercase tracking-wide text-zinc-500">
-                        Started
-                    </p>
-
-                    <p className="mt-1 text-sm text-zinc-300">
-                        {formatDate(run.createdAt)}
-                    </p>
-                </div>
-            </InfoCard>
-
-            <InfoCard
-                title="Execution"
-                icon={<Clock3 size={18} />}
-            >
-                <p className="text-3xl font-bold text-white">
-                    {calculateDuration(
-                        run.createdAt,
-                        run.completedAt
-                    )}
-                </p>
-
-                <p className="mt-2 text-sm text-zinc-500">
-                    Total Runtime
-                </p>
-            </InfoCard>
-
-            {run.pullRequest?.url && (
-                <InfoCard title="Pull Request" icon={<GitBranch size={18} />}>
-                    <a className="text-sm font-medium text-blue-400 hover:text-blue-300" href={run.pullRequest.url} target="_blank" rel="noreferrer">
-                        PR #{run.pullRequest.number}
-                    </a>
-                </InfoCard>
-            )}
-
+              <span>View on GitHub</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </div>
-    );
+      </InfoCard>
+
+      {/* Issue */}
+      <InfoCard
+        title="Reported Issue"
+        icon={<Hash className="h-4 w-4 text-violet-400" />}
+      >
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-lg font-bold text-white">
+              #{run.issue?.number}
+            </span>
+          </div>
+          <p className="text-xs text-zinc-400 line-clamp-2" title={run.issue?.title}>
+            {run.issue?.title || "Issue details loaded from repository"}
+          </p>
+        </div>
+      </InfoCard>
+
+      {/* Status & Timestamp */}
+      <InfoCard
+        title="Execution Status"
+        icon={<CalendarDays className="h-4 w-4 text-emerald-400" />}
+        badge={<StatusBadge status={run.status} size="xs" />}
+      >
+        <div className="space-y-1">
+          <p className="text-[11px] uppercase tracking-wider text-zinc-500">
+            Started At
+          </p>
+          <p className="font-mono text-xs text-zinc-300">
+            {formatDate(run.createdAt)}
+          </p>
+        </div>
+      </InfoCard>
+
+      {/* Runtime Duration */}
+      <InfoCard
+        title="Execution Duration"
+        icon={<Clock3 className="h-4 w-4 text-cyan-400" />}
+        badge={
+          isLive ? (
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-cyan-400 uppercase tracking-wider">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              Live
+            </span>
+          ) : null
+        }
+      >
+        <div className="space-y-1">
+          <p className="font-mono text-2xl font-bold text-white tracking-tight">
+            {calculateDuration()}
+          </p>
+          <p className="text-[11px] text-zinc-500">
+            {isLive ? "Elapsed time" : "Total wall-clock runtime"}
+          </p>
+        </div>
+      </InfoCard>
+    </div>
+  );
 };
 
 export default RunCard;

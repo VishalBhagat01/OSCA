@@ -1,39 +1,40 @@
+"use strict";
+
 const Run = require("../models/run_schema");
+const config = require("../config/env");
 const { runAgent } = require("./agent.service");
+const { emitRunUpdate } = require("./socket.service");
+const { RUN_STATUS } = require("../constants/run.constants");
 
-async function processRun(io,runId,payload) {
+async function processRun(io, runId, payload) {
     try {
-
         await Run.findByIdAndUpdate(runId, {
-            status: "running",
+            status: RUN_STATUS.RUNNING,
             startedAt: new Date(),
         });
 
-        io.emit("run:update", {
-            runId,
-            status: "running",
-        });
+        emitRunUpdate(io, runId, RUN_STATUS.RUNNING);
 
-        const port = process.env.PORT || 5000;
-        const baseUrl = process.env.BACKEND_URL || `http://localhost:${port}`;
-        const callbackUrl = `${baseUrl}/api/runs/${runId}/events`;
+        const callbackUrl = `${config.backendUrl}/api/runs/${runId}/events`;
 
         const result = await runAgent({
             ...payload,
             callback_url: callbackUrl,
-            callback_token: process.env.AGENT_CALLBACK_TOKEN,
+            callback_token: config.agent.callbackToken,
         });
 
         const succeeded = result?.proposed_patch?.can_generate_patch === true;
-        const status = succeeded ? "awaiting_approval" : "failed";
+        const status = succeeded ? RUN_STATUS.AWAITING_APPROVAL : RUN_STATUS.FAILED;
         const error = succeeded
             ? undefined
             : result?.proposed_patch?.reason || "Run did not satisfy acceptance criteria.";
 
-        const currentRun = await Run.findById(runId);
-        const finalTrace = (currentRun?.executionTrace && currentRun.executionTrace.length > 0)
-            ? currentRun.executionTrace
-            : (result?.execution_trace || []);
+        // Fetch live trace and merge with agent result in a single DB update
+        const currentRun = await Run.findById(runId).lean();
+        const finalTrace =
+            currentRun?.executionTrace?.length > 0
+                ? currentRun.executionTrace
+                : result?.execution_trace || [];
 
         await Run.findByIdAndUpdate(runId, {
             status,
@@ -43,27 +44,18 @@ async function processRun(io,runId,payload) {
             ...(error ? { error } : {}),
         });
 
-        io.emit("run:update", {
-            runId,
-            status,
-        });
-
+        emitRunUpdate(io, runId, status);
     } catch (err) {
+        console.error(`[processRun] Failed for run ${runId}:`, err.message);
 
         await Run.findByIdAndUpdate(runId, {
-            status: "failed",
+            status: RUN_STATUS.FAILED,
             completedAt: new Date(),
             error: err.message,
         });
 
-        io.emit("run:update", {
-            runId,
-            status: "failed",
-        });
-
+        emitRunUpdate(io, runId, RUN_STATUS.FAILED);
     }
 }
 
-module.exports = {
-    processRun,
-};
+module.exports = { processRun };

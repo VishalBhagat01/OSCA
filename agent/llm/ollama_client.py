@@ -1,14 +1,8 @@
-import os
-from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
-from langchain_groq import ChatGroq
+"""Backward-compatible re-export of the unified LLM instance.
 
-load_dotenv()
+All existing imports like `from llm.ollama_client import llm` continue
+to work without any code changes — the actual provider (Ollama or Gemini)
+is selected by the LLM_PROVIDER env var in llm_provider.py.
+"""
 
-llm = ChatOllama(
-    model=os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b"),
-    temperature=0.2
-)
-
-
-
+from llm.llm_provider import llm  # noqa: F401

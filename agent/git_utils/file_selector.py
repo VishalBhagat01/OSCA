@@ -1,37 +1,49 @@
 import os
 import re
 
-
 SOURCE_EXTENSIONS = (
     ".py", ".js", ".jsx", ".ts", ".tsx",
-    ".java", ".cpp", ".c", ".go", ".rs"
+    ".java", ".cpp", ".c", ".go", ".rs",
 )
 
-STOP_WORDS = {
-        "the", "is", "a", "an", "and", "or", "to", "of", "in",
-        "for", "with", "on", "this", "that", "it", "please",
-        "issue", "bug", "fix", "add", "update", "when", "return",
-        "sent", "from", "into", "have", "has", "had", "also",
-        "but", "are", "was", "were", "you", "your", "they",
-        "them", "we", "our", "now", "then", "than", "very",
-        "more", "most", "some", "any", "all", "can", "could",
-        "would", "should", "will", "may", "might", "make",
-        "makes", "made", "use", "using", "used", "way", "right",
-        "case", "cases", "lot", "sense", "imagine", "large",
-        "multiple", "consisting", "account", "take", "handled"
-}
+STOP_WORDS = frozenset({
+    "the", "is", "a", "an", "and", "or", "to", "of", "in",
+    "for", "with", "on", "this", "that", "it", "please",
+    "issue", "bug", "fix", "add", "update", "when", "return",
+    "sent", "from", "into", "have", "has", "had", "also",
+    "but", "are", "was", "were", "you", "your", "they",
+    "them", "we", "our", "now", "then", "than", "very",
+    "more", "most", "some", "any", "all", "can", "could",
+    "would", "should", "will", "may", "might", "make",
+    "makes", "made", "use", "using", "used", "way", "right",
+    "case", "cases", "lot", "sense", "imagine", "large",
+    "multiple", "consisting", "account", "take", "handled",
+})
 
-GENERIC_KEYWORDS = {
+GENERIC_KEYWORDS = frozenset({
     "error", "handling", "improve", "clearer",
     "message", "name", "names", "function",
-    "functions", "application", "applications"
+    "functions", "application", "applications",
+})
+
+# Pre-compiled pattern for keyword extraction
+_KEYWORD_PATTERN = re.compile(r"[a-zA-Z_][a-zA-Z0-9_/-]*")
+
+# Translate issue concepts into likely codebase terms
+_SEMANTIC_ALIASES = {
+    "endpoint": ["route", "routing", "url", "view", "rule"],
+    "endpoints": ["route", "routing", "url", "view", "rule"],
+    "url": ["route", "routing", "rule"],
+    "urls": ["route", "routing", "rule"],
+    "dotted": ["blueprint", "endpoint", "routing"],
+    "module": ["blueprint", "app", "scaffold"],
 }
 
 
 def extract_keywords(issue_title: str, issue_body: str) -> list[str]:
     text = f"{issue_title} {issue_body}".lower()
 
-    words = re.findall(r"[a-zA-Z_][a-zA-Z0-9_/-]*", text)
+    words = _KEYWORD_PATTERN.findall(text)
 
     keywords = {
         word
@@ -39,23 +51,13 @@ def extract_keywords(issue_title: str, issue_body: str) -> list[str]:
         if word not in STOP_WORDS and len(word) > 2
     }
 
-    # Translate issue concepts into likely codebase terms.
-    semantic_aliases = {
-        "endpoint": ["route", "routing", "url", "view", "rule"],
-        "endpoints": ["route", "routing", "url", "view", "rule"],
-        "url": ["route", "routing", "rule"],
-        "urls": ["route", "routing", "rule"],
-        "dotted": ["blueprint", "endpoint", "routing"],
-        "module": ["blueprint", "app", "scaffold"]
-    }
-
     expanded_keywords = set(keywords)
-
     for keyword in keywords:
-        if keyword in semantic_aliases:
-            expanded_keywords.update(semantic_aliases[keyword])
+        if keyword in _SEMANTIC_ALIASES:
+            expanded_keywords.update(_SEMANTIC_ALIASES[keyword])
 
     return sorted(expanded_keywords)
+
 
 def is_test_path(path: str) -> bool:
     normalized = path.lower().replace("\\", "/")
@@ -72,7 +74,7 @@ def select_relevant_files(
     repo_path: str,
     file_tree: list[str],
     keywords: list[str],
-    limit: int = 8
+    limit: int = 8,
 ):
     scored_files = []
 
@@ -96,9 +98,9 @@ def select_relevant_files(
                 full_path,
                 "r",
                 encoding="utf-8",
-                errors="ignore"
+                errors="ignore",
             ) as file:
-                content = file.read()[:30000].lower()
+                content = file.read(30_000).lower()
 
         except OSError:
             continue
@@ -117,7 +119,7 @@ def select_relevant_files(
 
         score = path_score + content_score
 
-        # Prefer Flask/source code.
+        # Prefer source code directories.
         if normalized_path.startswith("src/"):
             score += 8
 
@@ -133,7 +135,7 @@ def select_relevant_files(
         scored_files.append({
             "path": relative_path,
             "score": score,
-            "content": content[:12000]
+            "content": content[:12000],
         })
 
     scored_files.sort(key=lambda item: item["score"], reverse=True)

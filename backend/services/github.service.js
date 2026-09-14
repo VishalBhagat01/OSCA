@@ -1,19 +1,26 @@
 const fs = require("fs");
+const fsp = require("fs/promises");
 const path = require("path");
 
 const simpleGit = require("simple-git");
 const { Octokit } = require("@octokit/rest");
+const config = require("../config/env");
 
 const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
+    auth: config.githubToken || undefined,
 });
 
 const TEMP_DIR = path.join(__dirname, "../tmp");
 
 function parseRepoUrl(repoUrl) {
-    const match = repoUrl.match(/github\.com[:/](.+?)\/(.+?)(?:\.git)?$/);
+    if (!repoUrl || typeof repoUrl !== "string") {
+        throw new Error("Repository URL must be a valid string");
+    }
 
-    if (!match) {
+    const match = repoUrl.match(/^(?:https?:\/\/)?github\.com\/([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(?:\.git)?\/?$/)
+        || repoUrl.match(/^git@github\.com:([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+?)(?:\.git)?$/);
+
+    if (!match || match[1] === ".." || match[2] === ".." || match[1].includes("/") || match[2].includes("/")) {
         throw new Error("Invalid GitHub repository URL");
     }
 
@@ -24,20 +31,18 @@ function parseRepoUrl(repoUrl) {
 }
 
 async function cloneRepository(repoUrl) {
-    if (!fs.existsSync(TEMP_DIR)) {
-        fs.mkdirSync(TEMP_DIR, { recursive: true });
-    }
+    await fsp.mkdir(TEMP_DIR, { recursive: true });
 
     const { owner, repo } = parseRepoUrl(repoUrl);
-
     const repoPath = path.join(TEMP_DIR, `${owner}_${repo}`);
 
-    if (!fs.existsSync(repoPath)) {
-        console.log("Cloning repository...");
-        await simpleGit().clone(repoUrl, repoPath);
-    } else {
+    try {
+        await fsp.access(repoPath);
         console.log("Repository already exists. Pulling latest changes...");
         await simpleGit(repoPath).pull();
+    } catch {
+        console.log("Cloning repository...");
+        await simpleGit().clone(repoUrl, repoPath);
     }
 
     return repoPath;
@@ -45,13 +50,20 @@ async function cloneRepository(repoUrl) {
 
 async function getIssueDetails(repoUrl, issueNumber) {
     const { owner, repo } = parseRepoUrl(repoUrl);
-    const { data: issue } = await octokit.issues.get({ owner, repo, issue_number: issueNumber });
-    const { data: comments } = await octokit.issues.listComments({
-        owner,
-        repo,
-        issue_number: issueNumber,
-        per_page: 100,
-    });
+
+    // Fetch issue and comments concurrently
+    const [issueRes, commentsRes] = await Promise.all([
+        octokit.issues.get({ owner, repo, issue_number: issueNumber }),
+        octokit.issues.listComments({
+            owner,
+            repo,
+            issue_number: issueNumber,
+            per_page: 100,
+        }),
+    ]);
+
+    const issue = issueRes.data;
+    const comments = commentsRes.data;
 
     if (issue.pull_request) throw new Error("Pull requests cannot be processed as issues.");
 
@@ -103,22 +115,21 @@ async function commitChanges(git, message) {
     }
 
     await git.add(".");
-
     await git.commit(message);
 }
 
-async function pushBranch(git, branchName) {
-    await git.push("origin", branchName, {
+async function pushBranch(git, branchName, force = false) {
+    const options = {
         "--set-upstream": null,
-    });
+    };
+    if (force) {
+        options["--force"] = null;
+    }
+    await git.push("origin", branchName, options);
 }
 
-async function openPullRequest(owner, repo, branchName, run) {
-    const { data: repoData } = await octokit.repos.get({
-        owner,
-        repo,
-    });
-
+async function openPullRequest(owner, repo, branchName, run, isDraft = true) {
+    const { data: repoData } = await octokit.repos.get({ owner, repo });
     const defaultBranch = repoData.default_branch;
 
     const { data: pr } = await octokit.pulls.create({
@@ -128,53 +139,126 @@ async function openPullRequest(owner, repo, branchName, run) {
         head: branchName,
         base: defaultBranch,
         body: run.prDescription,
+        draft: Boolean(isDraft),
     });
 
     return pr;
 }
 
-async function createPullRequest(run, diff) {
+async function createPullRequest(run, diff, options = {}) {
     const repoPath = path.join(TEMP_DIR, `run-${run._id}`);
     try {
         const repoUrl = run.repository.url;
         const { owner, repo } = parseRepoUrl(repoUrl);
 
-        fs.rmSync(repoPath, { recursive: true, force: true });
+        await fsp.rm(repoPath, { recursive: true, force: true });
         await simpleGit().clone(repoUrl, repoPath);
 
-        const branchName = `osa/issue-${run.issue.number}-${run._id}`;
+        // Leverage PR metadata from agent if available, with robust fallbacks
+        const prMeta = run.result?.pr_metadata || {};
+        let branchName = prMeta.branch_name || `osa/issue-${run.issue.number}-${run._id}`;
+        const commitMessage = prMeta.commit_message || `Fix issue #${run.issue.number}: ${run.issue.title}`;
+        const prTitle = prMeta.pr_title || prMeta.title || run.issue.title;
+        const prBody = prMeta.pr_body || prMeta.body || `Automated patch for issue #${run.issue.number}.`;
+        const isDraft = options.isDraft !== undefined ? options.isDraft : (prMeta.is_draft !== false);
+
+        // Check if an existing PR for this branch exists. If it was already closed/merged,
+        // create a new unique branch name so GitHub allows opening a new pull request.
+        try {
+            const existingPrs = await octokit.pulls.list({
+                owner,
+                repo,
+                head: `${owner}:${branchName}`,
+                state: "all",
+            });
+            const closedPr = existingPrs.data?.find((p) => p.state === "closed");
+            const openPr = existingPrs.data?.find((p) => p.state === "open");
+            if (closedPr && !openPr) {
+                branchName = `${branchName}-${run._id.toString().slice(-6)}`;
+            }
+        } catch {
+            // Ignore pre-check failures
+        }
 
         const git = await createBranch(repoPath, branchName);
         const patchPath = path.join(repoPath, ".osa.patch");
-        fs.writeFileSync(patchPath, diff, "utf8");
+        await fsp.writeFile(patchPath, diff, "utf8");
         await git.raw(["apply", "--whitespace=fix", patchPath]);
-        fs.unlinkSync(patchPath);
+        await fsp.unlink(patchPath);
 
-        await commitChanges(
-            git,
-            `Fix issue #${run.issue.number}: ${run.issue.title}`
-        );
+        await commitChanges(git, commitMessage);
+        await pushBranch(git, branchName, true);
 
-        await pushBranch(git, branchName);
+        let pr;
+        try {
+            pr = await openPullRequest(
+                owner,
+                repo,
+                branchName,
+                { title: prTitle, prDescription: prBody },
+                isDraft
+            );
+        } catch (openErr) {
+            // Check if PR already exists or was opened for this branch
+            try {
+                const existingPrs = await octokit.pulls.list({
+                    owner,
+                    repo,
+                    head: `${owner}:${branchName}`,
+                    state: "all",
+                });
+                if (existingPrs.data && existingPrs.data.length > 0) {
+                    pr = existingPrs.data[0];
+                    try {
+                        const updatedPr = await octokit.pulls.update({
+                            owner,
+                            repo,
+                            pull_number: pr.number,
+                            title: prTitle,
+                            body: prBody,
+                        });
+                        pr = updatedPr.data;
+                    } catch {
+                        // Retain original PR info if update call fails
+                    }
+                }
+            } catch (listErr) {
+                // Ignore list error
+            }
 
-        const pr = await openPullRequest(
-            owner,
-            repo,
-            branchName,
-            { title: run.issue.title, prDescription: `Automated patch for issue #${run.issue.number}.` }
-        );
+            if (!pr) {
+                if (openErr.status === 403) {
+                    throw new Error(
+                        "GitHub returned 403 Forbidden: Personal Access Token does not have 'Pull requests: Read and write' permission on this repository."
+                    );
+                }
+                throw openErr;
+            }
+        }
+
+        let commitSha = "";
+        try {
+            commitSha = (await git.revparse(["HEAD"])).trim();
+        } catch (revErr) {
+            commitSha = "";
+        }
 
         return {
             number: pr.number,
             url: pr.html_url,
             branch: branchName,
-            commit: (await git.revparse(["HEAD"])).trim(),
+            commit: commitSha,
+            isDraft: Boolean(pr.draft),
         };
     } catch (err) {
         console.error("Failed to create pull request:", err);
         throw err;
     } finally {
-        fs.rmSync(repoPath, { recursive: true, force: true });
+        try {
+            await fsp.rm(repoPath, { recursive: true, force: true });
+        } catch (cleanErr) {
+            // Ignore directory cleanup locks on Windows
+        }
     }
 }
 

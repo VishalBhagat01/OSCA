@@ -23,6 +23,9 @@ class GeminiConfig:
     max_tokens: int = field(
         default_factory=lambda: int(os.getenv("GEMINI_MAX_TOKENS", "4096"))
     )
+    pacing_seconds: float = field(
+        default_factory=lambda: float(os.getenv("GEMINI_PACING_SECONDS", "2.0"))
+    )
 
 
 @dataclass(frozen=True)
@@ -60,6 +63,12 @@ class AgentSettings:
         )
     )
     github_token: str = field(default_factory=lambda: os.getenv("GITHUB_TOKEN", ""))
+    llm_cache_enabled: bool = field(
+        default_factory=lambda: os.getenv("LLM_CACHE_ENABLED", "true").lower() in ("true", "1", "yes")
+    )
+    llm_cache_max_entries: int = field(
+        default_factory=lambda: int(os.getenv("LLM_CACHE_MAX_ENTRIES", "1000"))
+    )
 
     gemini: GeminiConfig = field(default_factory=GeminiConfig)
     ollama: OllamaConfig = field(default_factory=OllamaConfig)

@@ -48,9 +48,11 @@ def acceptance_validator_node(state: AgentState) -> dict:
 
     # Truncate large fields to reduce prompt tokens
     truncated_patch = patch[:2000] + ("\n... [truncated]" if len(patch) > 2000 else "")
+    raw_stdout = test_result.get("stdout", "") or ""
+    stdout_snippet = raw_stdout[-800:] if len(raw_stdout) > 800 else raw_stdout
     truncated_test = {
         "success": test_result.get("success"),
-        "stdout": (test_result.get("stdout", "") or "")[:500],
+        "stdout": stdout_snippet,
         "return_code": test_result.get("return_code"),
     }
     compact_issue = {

@@ -9,6 +9,7 @@ from agents.nodes.state import AgentState
 from llm.ollama_client import llm
 from agents.utils.execution_trace import add_execution_event, emit_trace_event
 from prompts.planner_prompts import build_planner_prompt
+from git_utils.ast_skeletonizer import skeletonize_code
 from constants import NODE_PLANNER, STATUS_RUNNING, STATUS_SUCCESS
 
 logger = logging.getLogger("osa.agent.planner")
@@ -99,14 +100,17 @@ def build_prompt(state: AgentState) -> dict:
         "body": (raw_issue.get("body") or "")[:1200],
     }
     codebase = state.get("codebase", {})
-
-    files = [
-        {
-            "path": file["path"],
-            "content": file.get("content", "")[:1200],
-        }
-        for file in codebase.get("relevant_files", [])[:3]
-    ]
+    files = []
+    for file in codebase.get("relevant_files", [])[:3]:
+        path = file.get("path", "")
+        raw_code = file.get("content", "")
+        skeleton = skeletonize_code(path, raw_code) if raw_code else ""
+        if len(skeleton) > 800:
+            skeleton = skeleton[:800] + "\n... [truncated]"
+        files.append({
+            "path": path,
+            "content": skeleton,
+        })
 
     human_feedback = state.get("feedback")
     previous_result = state.get("previous_result")

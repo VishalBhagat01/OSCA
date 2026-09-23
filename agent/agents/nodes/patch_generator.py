@@ -83,7 +83,7 @@ def generate_file_edit(
         "test_plan": plan.get("test_plan", [])[:2],
     }
 
-    current_code = file_data.get("content", "")
+    current_code = repository_context.get(file_path, file_data.get("content", ""))
 
     # Lightweight list of available context filenames
     other_files = [p for p in repository_context.keys() if p != file_path][:5]
@@ -134,7 +134,13 @@ def generate_patch(state: AgentState) -> dict:
     allowed_files = set(state.get("selected_files", []))
     relevant_files = state.get("codebase", {}).get("relevant_files", [])
     retry_trace = state.get("retry_trace", [])
-    execution_feedback = retry_trace[-1].get("error", "") if retry_trace else ""
+    raw_error = retry_trace[-1].get("error", "") if retry_trace else ""
+    # Prioritize the tail where AssertionErrors, TypeErrors, and tracebacks reside
+    if len(raw_error) > 1000:
+        execution_feedback = "... [startup log truncated]\n" + raw_error[-1000:]
+    else:
+        execution_feedback = raw_error
+
     human_feedback = state.get("feedback")
     previous_result = state.get("previous_result")
 
@@ -174,22 +180,33 @@ def generate_patch(state: AgentState) -> dict:
         source_candidates.sort(key=lambda x: x[0], reverse=True)
         test_candidates.sort(key=lambda x: x[0], reverse=True)
 
-        # Select at most 1 primary source file and 1 test file (if test plan exists)
+        current_retry = state.get("retry_count", 0)
+        last_stage = retry_trace[-1].get("stage", "") if retry_trace else ""
+
+        # Select at most 1 primary source file and 1 test file
         files_to_process = []
         if source_candidates:
             files_to_process.append(source_candidates[0][1])
 
         test_plan = plan.get("test_plan", [])
-        if test_plan and test_candidates:
+        # On first attempt (retry_count == 0), synthesize both source and test files.
+        # On retries, ONLY synthesize the test file if test syntax specifically failed.
+        # Otherwise, preserve the existing test file and only repair implementation to save 50% tokens!
+        should_include_test = (
+            test_plan
+            and test_candidates
+            and (current_retry == 0 or last_stage == "test_syntax")
+        )
+        if should_include_test:
             files_to_process.append(test_candidates[0][1])
 
         # Fallback if candidates were empty
         if not files_to_process:
             files_to_process = [
                 fd for fd in relevant_files if fd["path"] in allowed_files
-            ][:2]
+            ][:1 if current_retry > 0 else 2]
 
-        # Concurrency: Sequential for Gemini to avoid bursting the 250k TPM limit
+        # Concurrency: Sequential for Gemini to avoid bursting the TPM/RPM limit
         is_gemini = get_provider_name() == "gemini"
         max_workers = 1 if is_gemini else min(len(files_to_process), 2)
 
@@ -265,6 +282,11 @@ def patch_generator_node(state: AgentState) -> dict:
     result = generate_patch(state)
     diff = result.get("patch", "")
     error = result.get("patch_generation_error")
+
+    # Anti-stagnation guard: If model generates identical diff to previous attempt, terminate early
+    previous_patch = state.get("patch", "")
+    if not error and current_retry > 1 and diff and diff.strip() == (previous_patch or "").strip():
+        error = "Patch synthesis stagnated: model generated identical patch to previous attempt."
 
     if error:
         execution_trace = add_execution_event(

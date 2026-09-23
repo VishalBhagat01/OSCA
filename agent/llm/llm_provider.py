@@ -13,19 +13,28 @@ import re
 import time
 from langchain_google_genai import ChatGoogleGenerativeAI
 from config import settings
+from llm.cache import init_llm_cache
 
 logger = logging.getLogger("osa.llm")
+
+# Initialize in-memory cache for prompt caching if enabled
+if settings.llm_cache_enabled:
+    init_llm_cache(max_entries=settings.llm_cache_max_entries)
 
 _llm_instance = None
 
 
-def _execute_with_backoff(func, *args, **kwargs):
+def _execute_with_backoff(func, *args, pacing: float | None = None, **kwargs):
     """Executes a function with smart retry and backoff for Gemini 429 and 503 errors."""
-    max_attempts = 5
+    max_attempts = 7
+    if pacing is None:
+        pacing = settings.gemini.pacing_seconds if get_provider_name() == "gemini" else 0.5
+
     for attempt in range(1, max_attempts + 1):
         try:
             # Polite pacing between requests to prevent quota bursting
-            time.sleep(0.5)
+            if pacing > 0:
+                time.sleep(pacing)
             return func(*args, **kwargs)
         except Exception as e:
             err_str = str(e)
@@ -37,25 +46,37 @@ def _execute_with_backoff(func, *args, **kwargs):
             is_503 = "503" in err_str or "UNAVAILABLE" in err_str
 
             if (is_429 or is_503) and attempt < max_attempts:
-                # Check for explicit retry delay in response, e.g. "Please retry in 32s" or "retryDelay: '32s'"
-                match = re.search(
-                    r"(?:retry in|retryDelay[:\s]+'?)\s*([\d\.]+)\s*s",
+                # Check for explicit retry delay in response:
+                # e.g. "Please retry after 32s", "retry in 12.5s", "retryDelay: '32s'", or "retry_delay { seconds: 45 }"
+                delay = None
+                match_s = re.search(
+                    r"(?:retry\s+(?:in|after)|retryDelay[:\s]+'?)\s*([\d\.]+)\s*s",
                     err_str,
                     re.IGNORECASE,
                 )
-                if match:
-                    delay = float(match.group(1)) + 1.5
-                elif is_429:
-                    # Token bucket window resets around 60s, so back off appropriately
-                    delay = min(
-                        40.0,
-                        5.0 * (2 ** (attempt - 1)) + random.uniform(0.5, 2.0),
+                if match_s:
+                    delay = float(match_s.group(1)) + 1.5
+                else:
+                    match_sec = re.search(
+                        r"(?:retry_delay|retryDelay)[^}]*?seconds[:\s]+'?([\d\.]+)",
+                        err_str,
+                        re.IGNORECASE,
                     )
-                else:  # 503
-                    delay = min(
-                        20.0,
-                        3.0 * (1.5 ** (attempt - 1)) + random.uniform(0.5, 1.5),
-                    )
+                    if match_sec:
+                        delay = float(match_sec.group(1)) + 1.5
+
+                if delay is None:
+                    if is_429:
+                        # Token bucket window resets around 60s, back off exponentially up to 65s
+                        delay = min(
+                            65.0,
+                            5.0 * (2 ** (attempt - 1)) + random.uniform(0.5, 2.0),
+                        )
+                    else:  # 503
+                        delay = min(
+                            20.0,
+                            3.0 * (1.5 ** (attempt - 1)) + random.uniform(0.5, 1.5),
+                        )
 
                 reason = "429 RESOURCE_EXHAUSTED" if is_429 else "503 UNAVAILABLE"
                 logger.warning(
@@ -73,12 +94,17 @@ def _execute_with_backoff(func, *args, **kwargs):
 class ResilientChatGoogleGenerativeAI(ChatGoogleGenerativeAI):
     """ChatGoogleGenerativeAI with intelligent backoff and retry-after parsing.
 
-    Any call to invoke() or with_structured_output().invoke() delegates to this
-    underlying model instance, automatically benefiting from _execute_with_backoff.
+    Any call to invoke(), _generate(), or with_structured_output().invoke()
+    delegates to this underlying model instance, automatically benefiting from _execute_with_backoff.
     """
 
     def invoke(self, input, config=None, **kwargs):
         return _execute_with_backoff(super().invoke, input, config=config, **kwargs)
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        return _execute_with_backoff(
+            super()._generate, messages, stop=stop, run_manager=run_manager, **kwargs
+        )
 
 
 def _create_ollama():

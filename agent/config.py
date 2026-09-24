@@ -46,6 +46,23 @@ class OllamaConfig:
 
 
 @dataclass(frozen=True)
+class NvidiaConfig:
+    api_key: str = field(default_factory=lambda: os.getenv("NVIDIA_API_KEY", ""))
+    model: str = field(
+        default_factory=lambda: os.getenv("NVIDIA_MODEL", "nvidia/llama-3.1-nemotron-70b-instruct")
+    )
+    temperature: float = field(
+        default_factory=lambda: float(os.getenv("NVIDIA_TEMPERATURE", "0.2"))
+    )
+    max_tokens: int = field(
+        default_factory=lambda: int(os.getenv("NVIDIA_MAX_TOKENS", "4096"))
+    )
+    fallback_enabled: bool = field(
+        default_factory=lambda: os.getenv("NVIDIA_FALLBACK_ENABLED", "true").lower() in ("true", "1", "yes")
+    )
+
+
+@dataclass(frozen=True)
 class AgentSettings:
     llm_provider: str = field(
         default_factory=lambda: os.getenv("LLM_PROVIDER", "ollama").strip().lower()
@@ -72,6 +89,7 @@ class AgentSettings:
 
     gemini: GeminiConfig = field(default_factory=GeminiConfig)
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
+    nvidia: NvidiaConfig = field(default_factory=NvidiaConfig)
 
     @property
     def allowed_origins(self) -> list[str]:

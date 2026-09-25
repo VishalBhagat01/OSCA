@@ -45,16 +45,14 @@ class TestPRMetadata(unittest.TestCase):
         self.assertIn("`src/parser.py`", metadata["pr_body"])
 
     @patch.dict("os.environ", {"OSA_PR_METADATA_LLM": "1"})
-    @patch("agents.nodes.pr_metadata_generator.llm")
-    def test_pr_metadata_generator_node_success(self, mock_llm):
-        mock_chain = MagicMock()
-        mock_chain.invoke.return_value = PRMetadataOutput(
+    @patch("agents.nodes.pr_metadata_generator.generate_structured_response")
+    def test_pr_metadata_generator_node_success(self, mock_gen):
+        mock_gen.return_value = PRMetadataOutput(
             branch_name="fix/issue-55-speedup",
             commit_message="fix: speedup string tokenization (closes #55)",
             pr_title="fix: optimize tokenizer regex",
             pr_body="## Summary\nOptimizes tokenization regex.\n\nCloses #55",
         )
-        mock_llm.with_structured_output.return_value = mock_chain
 
         state = {
             "issue": {"number": 55, "title": "Speedup tokenizer", "body": "It is slow"},

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from agents.nodes.state import AgentState
 from agents.utils.retry_trace import add_retry_trace
-from llm.ollama_client import llm
+from llm.llm_provider import generate_structured_response
 from agents.utils.execution_trace import add_execution_event, emit_trace_event
 from prompts.acceptance_prompts import build_acceptance_prompt
 from constants import (
@@ -19,17 +19,6 @@ class AcceptanceResult(BaseModel):
     accepted: bool
     reason: str
     violations: list[str] = Field(default_factory=list)
-
-
-_acceptance_llm = None
-
-
-def get_acceptance_llm():
-    """Lazily initialize acceptance LLM to avoid import-time side effects."""
-    global _acceptance_llm
-    if _acceptance_llm is None:
-        _acceptance_llm = llm.with_structured_output(AcceptanceResult)
-    return _acceptance_llm
 
 
 def acceptance_validator_node(state: AgentState) -> dict:
@@ -68,7 +57,7 @@ def acceptance_validator_node(state: AgentState) -> dict:
         truncated_test=truncated_test,
     )
 
-    result = get_acceptance_llm().invoke(prompt)
+    result = generate_structured_response(prompt, AcceptanceResult)
 
     if not result.accepted:
         retry_trace = add_retry_trace(state, stage="acceptance", error=result.reason)

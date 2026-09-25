@@ -30,6 +30,11 @@ if settings.llm_cache_enabled:
 
 _llm_instance = None
 
+# ── Sticky fallback state ───────────────────────────────────────────────────
+# Once Gemini's quota is exhausted during a pipeline run, we latch onto
+# Nemotron for ALL subsequent calls so we don't keep hitting the quota wall.
+_fallback_active: bool = False
+
 # ── Error classification helpers ────────────────────────────────────────────
 
 _RETRIABLE_PATTERNS = [
@@ -180,8 +185,30 @@ _PROVIDERS = {
 # ── Public helpers ──────────────────────────────────────────────────────────
 
 def get_provider_name() -> str:
-    """Return the configured LLM provider name."""
+    """Return the *configured* LLM provider name (from .env)."""
     return settings.llm_provider
+
+
+def get_active_provider_name() -> str:
+    """Return the provider currently serving requests.
+
+    If fallback has been activated, returns ``"nvidia-nemotron"`` even though
+    the configured provider is ``"gemini"``.
+    """
+    if _fallback_active:
+        return "nvidia-nemotron"
+    return settings.llm_provider
+
+
+def reset_fallback() -> None:
+    """Reset the sticky fallback so subsequent calls use the primary provider again.
+
+    Useful at the start of a new pipeline run or after a cooldown period.
+    """
+    global _fallback_active
+    if _fallback_active:
+        logger.info("[LLM Fallback] Sticky fallback reset — next call will try primary provider again.")
+        _fallback_active = False
 
 
 def get_llm():
@@ -204,7 +231,7 @@ def get_llm():
     return _llm_instance
 
 
-# ── Unified generate_response() with automatic fallback ────────────────────
+# ── Unified generate_response() with automatic sticky fallback ─────────────
 
 def _get_fallback_llm():
     """Lazily import and initialise the NVIDIA Nemotron fallback client."""
@@ -212,13 +239,37 @@ def _get_fallback_llm():
     return get_nvidia_llm()
 
 
+def _can_use_fallback(provider_used: str) -> bool:
+    """Check whether NVIDIA fallback is available and enabled."""
+    nvidia_cfg = settings.nvidia
+    return (
+        provider_used == "gemini"
+        and nvidia_cfg.fallback_enabled
+        and bool(nvidia_cfg.api_key)
+    )
+
+
+def _activate_sticky_fallback() -> None:
+    """Latch onto the fallback provider for ALL subsequent calls."""
+    global _fallback_active
+    if not _fallback_active:
+        _fallback_active = True
+        logger.warning(
+            "[LLM Fallback] Sticky fallback ACTIVATED — all subsequent calls "
+            "will use NVIDIA Nemotron until reset."
+        )
+
+
 def generate_response(prompt, *, config=None, **kwargs) -> str:
     """Generate a text response using the primary LLM with automatic fallback.
 
     This is the single entry-point the rest of the application should use.
-    When the primary provider (Gemini) fails due to quota / rate-limit /
-    API-availability errors **and** NVIDIA Nemotron is configured as a
-    fallback, the request is transparently retried through Nemotron.
+
+    **Sticky fallback:** When the primary provider (Gemini) fails due to
+    quota / rate-limit / API-availability errors, the request is retried
+    through NVIDIA Nemotron **and all subsequent calls in this process
+    automatically route to Nemotron** — so you don't keep bouncing off the
+    Gemini quota wall.
 
     Parameters
     ----------
@@ -235,8 +286,17 @@ def generate_response(prompt, *, config=None, **kwargs) -> str:
     str
         The generated text content.
     """
-    primary = get_llm()
     provider_used = get_provider_name()
+
+    # ── If sticky fallback is already active, go directly to Nemotron ───
+    if _fallback_active and _can_use_fallback(provider_used):
+        fallback = _get_fallback_llm()
+        response = fallback.invoke(prompt, config=config, **kwargs)
+        logger.info("[LLM] Response generated via fallback provider: nvidia-nemotron (sticky)")
+        return response.content if hasattr(response, "content") else str(response)
+
+    # ── Normal path: try primary provider first ─────────────────────────
+    primary = get_llm()
 
     try:
         response = primary.invoke(prompt, config=config, **kwargs)
@@ -244,19 +304,7 @@ def generate_response(prompt, *, config=None, **kwargs) -> str:
         return response.content if hasattr(response, "content") else str(response)
 
     except Exception as primary_err:
-        # Only attempt fallback when:
-        #   1. The error is a retriable quota / rate-limit / availability issue
-        #   2. The primary provider is Gemini (Ollama errors are usually local infra)
-        #   3. NVIDIA fallback is configured and enabled
-        nvidia_cfg = settings.nvidia
-        can_fallback = (
-            _is_retriable(primary_err)
-            and provider_used == "gemini"
-            and nvidia_cfg.fallback_enabled
-            and nvidia_cfg.api_key
-        )
-
-        if not can_fallback:
+        if not (_is_retriable(primary_err) and _can_use_fallback(provider_used)):
             raise
 
         logger.warning(
@@ -265,6 +313,9 @@ def generate_response(prompt, *, config=None, **kwargs) -> str:
             provider_used,
             type(primary_err).__name__,  # Log error type only — no keys/secrets
         )
+
+        # Activate sticky fallback for ALL subsequent calls
+        _activate_sticky_fallback()
 
         try:
             fallback = _get_fallback_llm()
@@ -285,7 +336,8 @@ def generate_structured_response(prompt, schema, *, config=None, **kwargs):
     """Generate a structured (Pydantic) response with automatic fallback.
 
     Works identically to ``generate_response`` but uses
-    ``with_structured_output()`` for type-safe results.
+    ``with_structured_output()`` for type-safe results.  Includes the same
+    sticky-fallback behaviour.
 
     Parameters
     ----------
@@ -303,8 +355,18 @@ def generate_structured_response(prompt, schema, *, config=None, **kwargs):
     BaseModel
         An instance of *schema* populated by the LLM.
     """
-    primary = get_llm()
     provider_used = get_provider_name()
+
+    # ── If sticky fallback is already active, go directly to Nemotron ───
+    if _fallback_active and _can_use_fallback(provider_used):
+        fallback = _get_fallback_llm()
+        structured_fallback = fallback.with_structured_output(schema)
+        result = structured_fallback.invoke(prompt, config=config, **kwargs)
+        logger.info("[LLM] Structured response generated via fallback provider: nvidia-nemotron (sticky)")
+        return result
+
+    # ── Normal path: try primary provider first ─────────────────────────
+    primary = get_llm()
     structured_primary = primary.with_structured_output(schema)
 
     try:
@@ -313,15 +375,7 @@ def generate_structured_response(prompt, schema, *, config=None, **kwargs):
         return result
 
     except Exception as primary_err:
-        nvidia_cfg = settings.nvidia
-        can_fallback = (
-            _is_retriable(primary_err)
-            and provider_used == "gemini"
-            and nvidia_cfg.fallback_enabled
-            and nvidia_cfg.api_key
-        )
-
-        if not can_fallback:
+        if not (_is_retriable(primary_err) and _can_use_fallback(provider_used)):
             raise
 
         logger.warning(
@@ -330,6 +384,9 @@ def generate_structured_response(prompt, schema, *, config=None, **kwargs):
             provider_used,
             type(primary_err).__name__,
         )
+
+        # Activate sticky fallback for ALL subsequent calls
+        _activate_sticky_fallback()
 
         try:
             fallback = _get_fallback_llm()
@@ -348,3 +405,4 @@ def generate_structured_response(prompt, schema, *, config=None, **kwargs):
 
 # Module-level singleton — created on first import
 llm = get_llm()
+

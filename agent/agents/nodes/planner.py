@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from agents.nodes.state import AgentState
-from llm.ollama_client import llm
+from llm.llm_provider import generate_response
 from agents.utils.execution_trace import add_execution_event, emit_trace_event
 from prompts.planner_prompts import build_planner_prompt
 from git_utils.ast_skeletonizer import skeletonize_code
@@ -140,8 +140,7 @@ def classify_and_plan(
     prompt: str | None = None,
 ) -> dict[str, Any]:
     prompt_to_use = prompt or state.get("prompt", "")
-    response = llm.invoke(prompt_to_use)
-    raw_response = getattr(response, "content", str(response))
+    raw_response = generate_response(prompt_to_use)
 
     issue = state.get("issue", {})
     relevant_files = state.get("codebase", {}).get("relevant_files", [])

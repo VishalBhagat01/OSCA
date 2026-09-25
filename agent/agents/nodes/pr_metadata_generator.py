@@ -4,7 +4,7 @@ import os
 from pydantic import BaseModel, Field
 
 from agents.nodes.state import AgentState
-from llm.ollama_client import llm
+from llm.llm_provider import generate_structured_response
 from agents.utils.execution_trace import add_execution_event, emit_trace_event
 from agents.utils.pr_utils import sanitize_branch_name, slugify_title
 from constants import (
@@ -118,8 +118,7 @@ REQUIREMENTS:
 3. `pr_title`: Clean pull request title.
 4. `pr_body`: Markdown with ## Summary, ## Proposed Changes, ## Testing & Validation, and Closes #{issue_number}."""
 
-            structured_llm = llm.with_structured_output(PRMetadataOutput)
-            result: PRMetadataOutput = structured_llm.invoke(prompt)
+            result: PRMetadataOutput = generate_structured_response(prompt, PRMetadataOutput)
 
             metadata = {
                 "branch_name": sanitize_branch_name(result.branch_name, issue_number),

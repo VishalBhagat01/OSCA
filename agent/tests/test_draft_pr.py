@@ -29,17 +29,15 @@ class TestDraftPR(unittest.TestCase):
         self.assertIn("Closes #42", draft["pr_body"])
 
     @patch.dict("os.environ", {"OSA_PR_METADATA_LLM": "1"})
-    @patch("agents.nodes.draft_pr.llm")
-    def test_draft_pr_node_with_llm(self, mock_llm):
-        mock_chain = MagicMock()
-        mock_chain.invoke.return_value = PRDraftOutput(
+    @patch("agents.nodes.draft_pr.generate_structured_response")
+    def test_draft_pr_node_with_llm(self, mock_gen):
+        mock_gen.return_value = PRDraftOutput(
             branch_name="fix/issue-42-route-fix",
             commit_message="fix(routing): handle empty route in blueprint (closes #42)",
             pr_title="fix(routing): handle empty route in blueprint (#42)",
             pr_body="### 🎯 Overview\nFixes empty route.\n\n### 👤 Human Reviewer Sign-Off\nApproved.",
             is_draft=True,
         )
-        mock_llm.with_structured_output.return_value = mock_chain
 
         state = {
             "issue": {"number": 42, "title": "Handle empty route", "body": "Crashes on empty path"},

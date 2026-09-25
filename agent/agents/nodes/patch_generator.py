@@ -10,8 +10,7 @@ from git import Repo
 from agents.models.patch import FileEdit
 from agents.nodes.state import AgentState
 from agents.nodes.validators import is_test_file
-from llm.llm_provider import get_provider_name
-from llm.ollama_client import llm
+from llm.llm_provider import generate_structured_response, get_active_provider_name
 from agents.utils.execution_trace import add_execution_event, emit_trace_event
 from prompts.patch_prompts import build_patch_prompt
 from constants import (
@@ -20,16 +19,6 @@ from constants import (
     STATUS_SUCCESS,
     STATUS_FAILED,
 )
-
-_structured_llm = None
-
-
-def get_structured_llm():
-    """Lazily initialize structured output model to avoid import-time side effects."""
-    global _structured_llm
-    if _structured_llm is None:
-        _structured_llm = llm.with_structured_output(FileEdit)
-    return _structured_llm
 
 
 def clean_code_content(content: str) -> str:
@@ -100,7 +89,7 @@ def generate_file_edit(
         is_likely=is_likely,
     )
 
-    return get_structured_llm().invoke(prompt)
+    return generate_structured_response(prompt, FileEdit)
 
 
 def _process_single_file(
@@ -207,8 +196,9 @@ def generate_patch(state: AgentState) -> dict:
             ][:1 if current_retry > 0 else 2]
 
         # Concurrency: Sequential for Gemini to avoid bursting the TPM/RPM limit
-        is_gemini = get_provider_name() == "gemini"
-        max_workers = 1 if is_gemini else min(len(files_to_process), 2)
+        active = get_active_provider_name()
+        is_cloud_api = active in ("gemini", "nvidia-nemotron")
+        max_workers = 1 if is_cloud_api else min(len(files_to_process), 2)
 
         results: dict[str, str | None] = {}
         if max_workers == 1:

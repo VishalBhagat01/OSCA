@@ -5,15 +5,13 @@ from agents.nodes.acceptance_validator import acceptance_validator_node, Accepta
 
 class TestAcceptanceValidator(unittest.TestCase):
 
-    @patch("agents.nodes.acceptance_validator.get_acceptance_llm")
-    def test_acceptance_passes(self, mock_get_llm):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = AcceptanceResult(
+    @patch("agents.nodes.acceptance_validator.generate_structured_response")
+    def test_acceptance_passes(self, mock_gen):
+        mock_gen.return_value = AcceptanceResult(
             accepted=True,
             reason="Patch meets requirements",
             violations=[],
         )
-        mock_get_llm.return_value = mock_llm
 
         state = {
             "issue": {"number": 1, "title": "Fix bug", "body": "Handle edge case"},
@@ -27,15 +25,13 @@ class TestAcceptanceValidator(unittest.TestCase):
         self.assertIsNone(result["acceptance_error"])
         self.assertEqual(len(result["execution_trace"]), 1)
 
-    @patch("agents.nodes.acceptance_validator.get_acceptance_llm")
-    def test_acceptance_fails(self, mock_get_llm):
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = AcceptanceResult(
+    @patch("agents.nodes.acceptance_validator.generate_structured_response")
+    def test_acceptance_fails(self, mock_gen):
+        mock_gen.return_value = AcceptanceResult(
             accepted=False,
             reason="Patch does not handle negative values",
             violations=["Missing negative value handling"],
         )
-        mock_get_llm.return_value = mock_llm
 
         state = {
             "issue": {"number": 2, "title": "Fix negative values", "body": "Must handle negatives"},

@@ -13,14 +13,14 @@ from git_utils.repo_info import repo_info
 from git_utils.issue_details import get_issue_details
 from agents.nodes.draft_pr import generate_pr_draft
 from services.context_service import collect_and_analyze_context
-from llm.llm_provider import get_provider_name
+from llm.llm_provider import get_active_provider_name, reset_fallback
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("osa.agent")
-logger.info("LLM provider: %s", get_provider_name())
+logger.info("LLM provider: %s", get_active_provider_name())
 
 app = FastAPI(title="Sentra AI Agent Service", version="1.0.0")
 
@@ -134,6 +134,8 @@ def draft_pr(payload: DraftPRRequest):
 @app.post("/analyze-issue")
 def analyze_selected_issue(data: AnalyzeIssueRequest):
     try:
+        # Each pipeline run starts fresh — give Gemini a chance before falling back
+        reset_fallback()
         return collect_and_analyze_context(data)
     except Exception as error:
         logger.exception("analyze-issue failed for %s#%d", data.repo_url, data.issue_number)

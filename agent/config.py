@@ -21,7 +21,7 @@ class GeminiConfig:
         default_factory=lambda: float(os.getenv("GEMINI_TEMPERATURE", "0.2"))
     )
     max_tokens: int = field(
-        default_factory=lambda: int(os.getenv("GEMINI_MAX_TOKENS", "4096"))
+        default_factory=lambda: int(os.getenv("GEMINI_MAX_TOKENS", "8192"))
     )
     pacing_seconds: float = field(
         default_factory=lambda: float(os.getenv("GEMINI_PACING_SECONDS", "2.0"))
@@ -38,10 +38,10 @@ class OllamaConfig:
         default_factory=lambda: float(os.getenv("OLLAMA_TEMPERATURE", "0.2"))
     )
     max_tokens: int = field(
-        default_factory=lambda: int(os.getenv("OLLAMA_MAX_TOKENS", "4096"))
+        default_factory=lambda: int(os.getenv("OLLAMA_MAX_TOKENS", "8192"))
     )
     num_ctx: int = field(
-        default_factory=lambda: int(os.getenv("OLLAMA_NUM_CTX", "8192"))
+        default_factory=lambda: int(os.getenv("OLLAMA_NUM_CTX", "16384"))
     )
 
 
@@ -55,7 +55,7 @@ class NvidiaConfig:
         default_factory=lambda: float(os.getenv("NVIDIA_TEMPERATURE", "0.2"))
     )
     max_tokens: int = field(
-        default_factory=lambda: int(os.getenv("NVIDIA_MAX_TOKENS", "4096"))
+        default_factory=lambda: int(os.getenv("NVIDIA_MAX_TOKENS", "8192"))
     )
     fallback_enabled: bool = field(
         default_factory=lambda: os.getenv("NVIDIA_FALLBACK_ENABLED", "true").lower() in ("true", "1", "yes")
@@ -76,7 +76,8 @@ class AgentSettings:
     )
     repos_dir: str = field(
         default_factory=lambda: os.getenv(
-            "OSA_REPOS_DIR", os.path.join(tempfile.gettempdir(), "osa_repos")
+            "OSA_REPOS_DIR",
+            os.getenv("CLONED_REPOS_DIR", str(Path(__file__).resolve().parent.parent / "cloned_repos"))
         )
     )
     github_token: str = field(default_factory=lambda: os.getenv("GITHUB_TOKEN", ""))

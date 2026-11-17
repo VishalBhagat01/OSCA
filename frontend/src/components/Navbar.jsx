@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { GitBranch, History, PlusCircle, Menu, X, Sparkles } from "lucide-react";
+import { History, PlusCircle, Menu, X } from "lucide-react";
 
 const GitHubIcon = ({ className = "h-3.5 w-3.5" }) => (
   <svg
@@ -21,56 +21,57 @@ export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-40 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <nav className="sticky top-0 z-40 border-b border-white/6 bg-[#0A0A0A]/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand */}
         <div className="flex items-center gap-6">
           <Link
             to="/"
             className="flex items-center gap-2.5 group transition-transform active:scale-98"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-violet-700 text-white shadow-md shadow-indigo-950/40 border border-indigo-400/20 group-hover:border-indigo-400/40 transition">
-              <GitBranch className="h-5 w-5" />
+            {/* YC-style orange square logo */}
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500 text-white font-bold text-sm shadow-md shadow-orange-950/30 group-hover:shadow-orange-500/20 transition-shadow">
+              S
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-base font-bold tracking-tight text-white sm:text-lg">
+              <span className="text-[15px] font-semibold tracking-tight text-[#E8E8E3]">
                 Sentra AI
               </span>
-              <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
-                <Sparkles className="h-2.5 w-2.5" />
-                Developer
+              <span className="hidden sm:inline-flex items-center rounded-full border border-orange-500/20 bg-orange-500/8 px-2 py-0.5 text-[10px] font-medium text-orange-400">
+                v2.4
               </span>
             </div>
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center gap-1 pl-4 border-l border-zinc-800/80">
+          <div className="hidden md:flex items-center gap-0.5 pl-5 border-l border-white/6">
             <NavLink
               to="/"
+              end
               className={({ isActive }) =>
-                `inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
                   isActive
-                    ? "bg-zinc-800/90 text-white shadow-sm border border-zinc-700/60"
-                    : "text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+                    ? "bg-white/8 text-[#E8E8E3]"
+                    : "text-[#737370] hover:bg-white/4 hover:text-[#A8A8A0]"
                 }`
               }
             >
-              <PlusCircle className="h-3.5 w-3.5 text-indigo-400" />
+              <PlusCircle className="h-3.5 w-3.5" />
               New Run
             </NavLink>
 
             <NavLink
               to="/history"
               className={({ isActive }) =>
-                `inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                `inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all ${
                   isActive
-                    ? "bg-zinc-800/90 text-white shadow-sm border border-zinc-700/60"
-                    : "text-zinc-400 hover:bg-zinc-800/40 hover:text-zinc-200"
+                    ? "bg-white/8 text-[#E8E8E3]"
+                    : "text-[#737370] hover:bg-white/4 hover:text-[#A8A8A0]"
                 }`
               }
             >
-              <History className="h-3.5 w-3.5 text-zinc-400" />
-              Execution History
+              <History className="h-3.5 w-3.5" />
+              History
             </NavLink>
           </div>
         </div>
@@ -81,15 +82,15 @@ export const Navbar = () => {
             href="https://github.com"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-2.5 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-700 hover:text-white transition"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/8 px-2.5 py-1.5 text-xs font-medium text-[#737370] hover:border-white/12 hover:text-[#A8A8A0] transition"
           >
             <GitHubIcon className="h-3.5 w-3.5" />
             <span>GitHub</span>
           </a>
 
-          <div className="flex items-center gap-2 pl-3 border-l border-zinc-800/80 text-xs text-zinc-400">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-            <span className="font-mono text-[11px] text-zinc-400">Agent v2.4</span>
+          <div className="flex items-center gap-2 pl-3 border-l border-white/6 text-xs text-[#525250]">
+            <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
+            <span className="font-mono text-[11px]">Online</span>
           </div>
         </div>
 
@@ -98,7 +99,7 @@ export const Navbar = () => {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-zinc-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="rounded-lg border border-white/8 p-2 text-[#737370] hover:text-[#E8E8E3] focus:outline-none focus:ring-2 focus:ring-orange-500"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -106,21 +107,22 @@ export const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile drawer / dropdown */}
+      {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-zinc-800 bg-zinc-950/95 px-4 py-4 space-y-2 backdrop-blur-xl animate-in fade-in-0 duration-150">
+        <div className="md:hidden border-b border-white/6 bg-[#0A0A0A]/95 px-4 py-4 space-y-2 backdrop-blur-xl">
           <NavLink
             to="/"
+            end
             onClick={() => setMobileMenuOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
                 isActive
-                  ? "bg-indigo-600/15 text-indigo-300 border border-indigo-500/20"
-                  : "text-zinc-300 hover:bg-zinc-900"
+                  ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                  : "text-[#A8A8A0] hover:bg-white/4"
               }`
             }
           >
-            <PlusCircle className="h-4 w-4 text-indigo-400" />
+            <PlusCircle className="h-4 w-4" />
             New Run
           </NavLink>
 
@@ -130,21 +132,21 @@ export const Navbar = () => {
             className={({ isActive }) =>
               `flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
                 isActive
-                  ? "bg-indigo-600/15 text-indigo-300 border border-indigo-500/20"
-                  : "text-zinc-300 hover:bg-zinc-900"
+                  ? "bg-orange-500/10 text-orange-400 border border-orange-500/20"
+                  : "text-[#A8A8A0] hover:bg-white/4"
               }`
             }
           >
-            <History className="h-4 w-4 text-zinc-400" />
-            Execution History
+            <History className="h-4 w-4" />
+            History
           </NavLink>
 
-          <div className="pt-2 border-t border-zinc-800/80 flex items-center justify-between text-xs text-zinc-400">
+          <div className="pt-2 border-t border-white/6 flex items-center justify-between text-xs text-[#525250]">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Engine Online
             </span>
-            <span className="font-mono text-[11px] text-zinc-500">v2.4 Production</span>
+            <span className="font-mono text-[11px]">v2.4</span>
           </div>
         </div>
       )}

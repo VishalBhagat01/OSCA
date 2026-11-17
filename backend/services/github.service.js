@@ -10,7 +10,7 @@ const octokit = new Octokit({
     auth: config.githubToken || undefined,
 });
 
-const TEMP_DIR = path.join(__dirname, "../tmp");
+const TEMP_DIR = config.reposDir || path.join(__dirname, "../../cloned_repos");
 
 function parseRepoUrl(repoUrl) {
     if (!repoUrl || typeof repoUrl !== "string") {
@@ -51,28 +51,42 @@ async function cloneRepository(repoUrl) {
 async function getIssueDetails(repoUrl, issueNumber) {
     const { owner, repo } = parseRepoUrl(repoUrl);
 
-    // Fetch issue and comments concurrently
-    const [issueRes, commentsRes] = await Promise.all([
-        octokit.issues.get({ owner, repo, issue_number: issueNumber }),
-        octokit.issues.listComments({
-            owner,
-            repo,
-            issue_number: issueNumber,
-            per_page: 100,
-        }),
-    ]);
+    try {
+        // Fetch issue and comments concurrently
+        const [issueRes, commentsRes] = await Promise.all([
+            octokit.issues.get({ owner, repo, issue_number: issueNumber }),
+            octokit.issues.listComments({
+                owner,
+                repo,
+                issue_number: issueNumber,
+                per_page: 100,
+            }),
+        ]);
 
-    const issue = issueRes.data;
-    const comments = commentsRes.data;
+        const issue = issueRes.data;
+        const comments = commentsRes.data;
 
-    if (issue.pull_request) throw new Error("Pull requests cannot be processed as issues.");
+        if (issue.pull_request) throw new Error("Pull requests cannot be processed as issues.");
 
-    return {
-        title: issue.title,
-        body: issue.body || "",
-        labels: issue.labels.map((label) => typeof label === "string" ? label : label.name),
-        comments: comments.map((comment) => comment.body || ""),
-    };
+        return {
+            title: issue.title,
+            body: issue.body || "",
+            labels: issue.labels.map((label) => typeof label === "string" ? label : label.name),
+            comments: comments.map((comment) => comment.body || ""),
+        };
+    } catch (err) {
+        if (err.status === 404) {
+            const error = new Error(`GitHub issue #${issueNumber} was not found in repository "${owner}/${repo}". Please verify the repository owner/name and issue number.`);
+            error.statusCode = 404;
+            throw error;
+        }
+        if (err.status === 403) {
+            const error = new Error(`GitHub API rate limit exceeded or access forbidden: ${err.message}`);
+            error.statusCode = 403;
+            throw error;
+        }
+        throw err;
+    }
 }
 
 async function createBranch(repoPath, branchName) {

@@ -2,24 +2,40 @@
 
 @layer base {
   :root {
-    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    /* YC-Inspired Dark Typography */
+    --font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-    /* Dark SaaS Surface Tokens */
-    --bg-canvas: #09090b;
-    --bg-subtle: #111115;
-    --bg-surface: #17171c;
-    --bg-surface-elevated: #1e1e24;
-    --bg-surface-hover: #26262e;
+    /* YC Dark Surface Tokens */
+    --bg-canvas: #0A0A0A;
+    --bg-subtle: #111111;
+    --bg-surface: #171717;
+    --bg-surface-elevated: #1C1C1C;
+    --bg-surface-hover: #242424;
+    --bg-warm: #1A1814;
 
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-default: rgba(255, 255, 255, 0.12);
-    --border-strong: rgba(255, 255, 255, 0.2);
+    /* YC Orange Palette */
+    --orange-50: #FFF7ED;
+    --orange-100: #FFEDD5;
+    --orange-200: #FED7AA;
+    --orange-300: #FDBA74;
+    --orange-400: #FB923C;
+    --orange-500: #F97316;
+    --orange-600: #EA580C;
+    --orange-700: #C2410C;
 
-    --text-primary: #fafafa;
-    --text-secondary: #a1a1aa;
-    --text-muted: #71717a;
-    --text-faint: #52525b;
+    /* Warm Borders */
+    --border-subtle: rgba(255, 255, 255, 0.06);
+    --border-default: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --border-orange: rgba(249, 115, 22, 0.25);
+
+    /* Text Hierarchy */
+    --text-primary: #E8E8E3;
+    --text-secondary: #A8A8A0;
+    --text-muted: #737370;
+    --text-faint: #525250;
 
     color-scheme: dark;
   }
@@ -42,9 +58,14 @@
     overflow-x: hidden;
   }
 
+  /* Serif headings — editorial premium feel */
+  h1, h2 {
+    font-family: var(--font-serif);
+  }
+
   /* Focus visible accessibility */
   :focus-visible {
-    outline: 2px solid #6366f1;
+    outline: 2px solid var(--orange-500);
     outline-offset: 2px;
   }
 
@@ -54,10 +75,10 @@
   }
 }
 
-/* Custom Sleek Dark Scrollbar */
+/* Custom Warm Dark Scrollbar */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -65,24 +86,24 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: #2A2A28;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #3D3D3A;
 }
 
-/* Glassmorphism & Surface Utilities */
+/* Warm Glass Panels */
 .glass-panel {
-  background: rgba(18, 18, 22, 0.75);
+  background: rgba(17, 17, 17, 0.8);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
 }
 
 .glass-panel-elevated {
-  background: rgba(24, 24, 29, 0.85);
+  background: rgba(23, 23, 23, 0.9);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-default);
@@ -116,10 +137,16 @@
   background-image: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0,
-    rgba(255, 255, 255, 0.04) 20%,
-    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0.03) 20%,
+    rgba(255, 255, 255, 0.06) 60%,
     rgba(255, 255, 255, 0)
   );
   animation: shimmer 2s infinite;
   content: '';
+}
+
+/* Warm orange glow for primary buttons */
+.glow-orange {
+  box-shadow: 0 0 20px -4px rgba(249, 115, 22, 0.3),
+              0 8px 24px -8px rgba(249, 115, 22, 0.15);
 }

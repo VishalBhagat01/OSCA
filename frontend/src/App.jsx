@@ -9,15 +9,15 @@ import ErrorBoundary from "./components/ErrorBoundary";
 function App() {
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-[#09090b] text-[#fafafa] flex flex-col">
+      <div className="min-h-screen bg-[#0A0A0A] text-[#E8E8E3] flex flex-col">
         <Toaster
           position="top-right"
           toastOptions={{
             duration: 3500,
             style: {
-              background: "#16161b",
-              color: "#fafafa",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "#171717",
+              color: "#E8E8E3",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
               borderRadius: "12px",
               boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.7)",
               fontSize: "13px",
@@ -26,14 +26,14 @@ function App() {
             },
             success: {
               iconTheme: {
-                primary: "#10b981",
-                secondary: "#16161b",
+                primary: "#F97316",
+                secondary: "#171717",
               },
             },
             error: {
               iconTheme: {
-                primary: "#f43f5e",
-                secondary: "#16161b",
+                primary: "#EF4444",
+                secondary: "#171717",
               },
             },
           }}

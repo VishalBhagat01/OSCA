@@ -17,6 +17,7 @@ const config = Object.freeze({
     frontendOrigin: process.env.FRONTEND_ORIGIN || "http://localhost:5173",
     apiKey: process.env.API_KEY || "",
     githubToken: process.env.GITHUB_TOKEN || "",
+    reposDir: process.env.OSA_REPOS_DIR || process.env.CLONED_REPOS_DIR || path.join(__dirname, "../../cloned_repos"),
     agent: Object.freeze({
         apiUrl: process.env.AGENT_API_URL || "http://127.0.0.1:8000",
         apiKey: process.env.AGENT_API_KEY || "",

@@ -1,5 +1,5 @@
 import os
-from agents.nodes.state import AgentState
+from agents.state import AgentState
 from agents.utils.retry_trace import add_retry_trace
 from agents.utils.execution_trace import add_execution_event
 from agents.utils.fuzzy_patch import apply_fuzzy_patch

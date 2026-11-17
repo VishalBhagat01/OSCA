@@ -7,8 +7,8 @@ from pathlib import Path
 # pyrefly: ignore [missing-import]
 from git import Repo
 
-from agents.models.patch import FileEdit
-from agents.nodes.state import AgentState
+from pydantic import BaseModel, Field
+from agents.state import AgentState
 from agents.nodes.validators import is_test_file
 from llm.llm_provider import generate_structured_response, get_active_provider_name
 from agents.utils.execution_trace import add_execution_event, emit_trace_event
@@ -19,6 +19,16 @@ from constants import (
     STATUS_SUCCESS,
     STATUS_FAILED,
 )
+
+
+class FileEdit(BaseModel):
+    should_modify: bool = Field(
+        description="Whether the target file needs modification"
+    )
+    content: str = Field(
+        description="Complete updated file content"
+    )
+
 
 
 def clean_code_content(content: str) -> str:
@@ -113,14 +123,28 @@ def _process_single_file(
     if not edit.should_modify:
         return file_path, None
 
-    return file_path, clean_code_content(edit.content)
+    cleaned_content = clean_code_content(edit.content)
+
+    # Safeguard against model hallucinating truncation comments
+    truncation_markers = (
+        "# ... [remaining lines truncated",
+        "# ... [rest of file",
+        "# ... [rest of code",
+        "# ... [truncated]",
+        "/* ... [remaining",
+        "// ... [remaining",
+    )
+    if any(marker in cleaned_content for marker in truncation_markers):
+        return file_path, None
+
+    return file_path, cleaned_content
 
 
 def generate_patch(state: AgentState) -> dict:
     repo_path = Path(state["repo_path"])
     repo = Repo(repo_path, search_parent_directories=False)
 
-    allowed_files = set(state.get("selected_files", []))
+    allowed_files = {fp.replace("\\", "/").strip().lower() for fp in state.get("selected_files", [])}
     relevant_files = state.get("codebase", {}).get("relevant_files", [])
     retry_trace = state.get("retry_trace", [])
     raw_error = retry_trace[-1].get("error", "") if retry_trace else ""
@@ -156,7 +180,8 @@ def generate_patch(state: AgentState) -> dict:
         test_candidates = []
 
         for fd in relevant_files:
-            if fd["path"] not in allowed_files:
+            fd_norm = fd["path"].replace("\\", "/").strip().lower()
+            if fd_norm not in allowed_files:
                 continue
             p = fd["path"].replace("\\", "/").strip().lower()
             is_likely = p in likely_file_paths

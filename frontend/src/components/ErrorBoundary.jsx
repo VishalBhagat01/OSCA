@@ -1,8 +1,8 @@
-import React from "react";
-import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { Component } from "react";
+import { AlertTriangle, RotateCw } from "lucide-react";
 import Button from "./ui/Button";
 
-class ErrorBoundary extends React.Component {
+class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -13,51 +13,37 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("[ErrorBoundary caught an error]:", error, errorInfo);
+    console.error("[ErrorBoundary] Caught:", error, errorInfo);
   }
 
-  handleReload = () => {
-    window.location.reload();
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-[#09090b] text-white p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-red-500/20 bg-zinc-900/90 p-8 text-center space-y-5 shadow-2xl backdrop-blur-xl">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 text-red-400">
+        <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-6">
+          <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-[#111111] p-8 text-center space-y-5 shadow-2xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-400 border border-red-500/15">
               <AlertTriangle className="h-7 w-7" />
             </div>
-
-            <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                An Unexpected Error Occurred
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-[#E8E8E3]" style={{ fontFamily: "var(--font-serif)" }}>
+                Something went wrong
               </h2>
-              <p className="mt-2 text-sm text-zinc-400">
-                The application encountered an issue while rendering this view.
+              <p className="text-[13px] text-[#737370]">
+                {this.state.error?.message || "An unexpected error occurred."}
               </p>
             </div>
-
-            {this.state.error && (
-              <div className="rounded-xl border border-zinc-800 bg-black/60 p-3.5 text-left font-mono text-xs text-red-400/90 overflow-auto max-h-40 leading-relaxed">
-                {this.state.error.message || String(this.state.error)}
-              </div>
-            )}
-
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <Button
-                variant="primary"
-                icon={RefreshCw}
-                onClick={this.handleReload}
-              >
-                Reload Page
-              </Button>
-              <a href="/">
-                <Button variant="secondary" icon={Home}>
-                  Return Home
-                </Button>
-              </a>
-            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={RotateCw}
+              onClick={this.handleReset}
+            >
+              Try Again
+            </Button>
           </div>
         </div>
       );

@@ -37,7 +37,7 @@ def scan_repository(repo_path: str):
         for file_name in files:
             full_path = os.path.join(root, file_name)
 
-            relative_path = os.path.relpath(full_path, repo_path)
+            relative_path = os.path.relpath(full_path, repo_path).replace("\\", "/")
             file_tree.append(relative_path)
 
             if relative_path == file_name and file_name in IMPORTANT_FILE_NAMES:

@@ -8,5 +8,4 @@ langchain-ollama
 langchain-google-genai
 langchain-nvidia-ai-endpoints
 pydantic
-pytest
 python-dotenv

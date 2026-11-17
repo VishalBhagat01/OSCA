@@ -5,7 +5,7 @@ import logging
 import re
 from typing import Any
 
-from agents.nodes.state import AgentState
+from agents.state import AgentState
 from llm.llm_provider import generate_response
 from agents.utils.execution_trace import add_execution_event, emit_trace_event
 from prompts.planner_prompts import build_planner_prompt

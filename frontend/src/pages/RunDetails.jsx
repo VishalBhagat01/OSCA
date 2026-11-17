@@ -42,7 +42,7 @@ export const RunDetails = () => {
   const [copiedId, setCopiedId] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [activeTab, setActiveTab] = useState("all"); // 'all' | 'patch' | 'planner' | 'trace'
+  const [activeTab, setActiveTab] = useState("all");
 
   const { run, loading, isFetching, error, refetch } = useRun(id);
 
@@ -146,7 +146,7 @@ export const RunDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex flex-col">
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
         <Navbar />
         <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
           <div className="flex items-center justify-between">
@@ -154,7 +154,7 @@ export const RunDetails = () => {
             <Skeleton className="h-9 w-24 rounded-xl" />
           </div>
           <RunCardSkeleton />
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 space-y-4">
+          <div className="rounded-2xl border border-white/6 bg-[#111111] p-8 space-y-4">
             <Skeleton className="h-6 w-60" />
             <Skeleton className="h-32 w-full rounded-xl" />
           </div>
@@ -165,18 +165,20 @@ export const RunDetails = () => {
 
   if (error || !run) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex flex-col">
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
         <Navbar />
         <main className="max-w-xl mx-auto w-full px-4 py-20 text-center space-y-4">
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-8 space-y-4 shadow-2xl">
-            <h2 className="text-xl font-bold text-white">Execution Not Found</h2>
+          <div className="rounded-2xl border border-red-500/20 bg-[#111111] p-8 space-y-4 shadow-2xl">
+            <h2 className="text-xl font-bold text-[#E8E8E3]" style={{ fontFamily: "var(--font-serif)" }}>
+              Execution Not Found
+            </h2>
             <p className="text-sm text-red-300">
               {error || "The requested run ID does not exist or may have been deleted."}
             </p>
             <div className="pt-2 flex justify-center gap-3">
               <Link to="/history">
                 <Button variant="secondary" size="sm">
-                  View Run History
+                  View History
                 </Button>
               </Link>
               <Link to="/">
@@ -197,29 +199,29 @@ export const RunDetails = () => {
   const pullRequest = run.pullRequest;
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col">
+    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       <Navbar />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Navigation Breadcrumbs & Actions Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/80 pb-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/6 pb-5">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <div className="flex items-center gap-2 text-xs text-[#525250]">
               <Link
                 to="/history"
-                className="hover:text-white transition flex items-center gap-1 font-medium"
+                className="hover:text-[#E8E8E3] transition flex items-center gap-1 font-medium"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
                 History
               </Link>
               <span>/</span>
-              <span className="font-mono text-zinc-300">
+              <span className="font-mono text-[#A8A8A0]">
                 run_{id?.slice(-8)}
               </span>
             </div>
 
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-[#E8E8E3] tracking-tight">
                 Run #{id?.slice(-6)}
               </h1>
 
@@ -229,7 +231,7 @@ export const RunDetails = () => {
               <button
                 type="button"
                 onClick={copyRunId}
-                className="inline-flex items-center gap-1 rounded-md border border-zinc-800 bg-zinc-900 px-2 py-0.5 font-mono text-[11px] text-zinc-400 hover:text-white transition"
+                className="inline-flex items-center gap-1 rounded-md border border-white/8 bg-[#111111] px-2 py-0.5 font-mono text-[11px] text-[#525250] hover:text-[#E8E8E3] transition"
                 title="Copy full run ID"
               >
                 {copiedId ? (
@@ -249,11 +251,11 @@ export const RunDetails = () => {
                 href={run.repository.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:border-zinc-700 transition"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/8 px-3 py-2 text-xs font-medium text-[#A8A8A0] hover:text-[#E8E8E3] hover:border-white/12 transition"
               >
-                <GitBranch className="h-3.5 w-3.5 text-indigo-400" />
+                <GitBranch className="h-3.5 w-3.5 text-orange-500" />
                 <span className="hidden md:inline">GitHub</span>
-                <ExternalLink className="h-3 w-3 text-zinc-500" />
+                <ExternalLink className="h-3 w-3 text-[#525250]" />
               </a>
             )}
 
@@ -273,19 +275,19 @@ export const RunDetails = () => {
               size="sm"
               icon={Trash2}
               onClick={() => setShowDeleteModal(true)}
-              className="text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10"
+              className="text-[#525250] hover:text-red-400 hover:bg-red-500/10"
               title="Delete run"
             />
           </div>
         </div>
 
-        {/* Active Running State Banner when Agent is working */}
+        {/* Active Running State Banner */}
         <ActiveRunningCard run={run} />
 
-        {/* Metric KPI Cards (Repo, Issue, Status, Duration) */}
+        {/* Metric KPI Cards */}
         <RunCard run={run} />
 
-        {/* Human-in-the-Loop Review Card with confirmation safeguard */}
+        {/* Human-in-the-Loop Review Card */}
         <HumanReviewCard
           run={run}
           onApprove={approve}
@@ -295,14 +297,14 @@ export const RunDetails = () => {
         />
 
         {/* View Mode Navigation Tabs */}
-        <div className="flex items-center gap-1 border-b border-zinc-800/80 pb-3 overflow-x-auto">
+        <div className="flex items-center gap-1 border-b border-white/6 pb-3 overflow-x-auto">
           <button
             type="button"
             onClick={() => setActiveTab("all")}
             className={`rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
               activeTab === "all"
-                ? "bg-zinc-800 text-white shadow-sm border border-zinc-700/80"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                ? "bg-white/8 text-[#E8E8E3]"
+                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
             }`}
           >
             All Sections
@@ -313,8 +315,8 @@ export const RunDetails = () => {
             onClick={() => setActiveTab("patch")}
             className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
               activeTab === "patch"
-                ? "bg-zinc-800 text-white shadow-sm border border-zinc-700/80"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                ? "bg-white/8 text-[#E8E8E3]"
+                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
             }`}
           >
             <Code2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -326,11 +328,11 @@ export const RunDetails = () => {
             onClick={() => setActiveTab("planner")}
             className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
               activeTab === "planner"
-                ? "bg-zinc-800 text-white shadow-sm border border-zinc-700/80"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                ? "bg-white/8 text-[#E8E8E3]"
+                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
             }`}
           >
-            <Brain className="h-3.5 w-3.5 text-violet-400" />
+            <Brain className="h-3.5 w-3.5 text-amber-400" />
             Planner Analysis
           </button>
 
@@ -339,12 +341,12 @@ export const RunDetails = () => {
             onClick={() => setActiveTab("trace")}
             className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
               activeTab === "trace"
-                ? "bg-zinc-800 text-white shadow-sm border border-zinc-700/80"
-                : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                ? "bg-white/8 text-[#E8E8E3]"
+                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
             }`}
           >
-            <ListTree className="h-3.5 w-3.5 text-indigo-400" />
-            Trace Graph & Iterations
+            <ListTree className="h-3.5 w-3.5 text-orange-400" />
+            Trace & History
           </button>
         </div>
 
@@ -383,13 +385,13 @@ export const RunDetails = () => {
         )}
       </main>
 
-      {/* Delete Run Confirmation Safeguard */}
+      {/* Delete Run Confirmation */}
       <ConfirmDialog
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
         title="Delete This Execution Run?"
-        description="Are you sure you want to delete this run? All execution telemetry, synthesized diffs, and review history will be permanently deleted."
+        description="Are you sure? All execution telemetry, diffs, and review history will be permanently deleted."
         confirmText="Yes, Delete Run"
         variant="danger"
         loading={deleting}

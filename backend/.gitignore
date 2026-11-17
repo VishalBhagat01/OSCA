@@ -24,6 +24,8 @@ tmp/
 temp/
 cache/
 uploads/
+cloned_repos/
+../cloned_repos/
 
 # Database files
 *.db

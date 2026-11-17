@@ -32,14 +32,23 @@ server.listen(config.port, () => {
 // Graceful shutdown
 function shutdown(signal) {
     console.log(`\n${signal} received. Shutting down gracefully...`);
+    try {
+        io.close();
+        if (server.closeIdleConnections) {
+            server.closeIdleConnections();
+        }
+        if (server.closeAllConnections) {
+            server.closeAllConnections();
+        }
+    } catch (_) {}
+
     server.close(() => {
         console.log("HTTP server closed.");
-        io.close(() => {
-            console.log("Socket.IO closed.");
-            mongoose.connection.close(false).then(() => {
-                console.log("MongoDB connection closed.");
-                process.exit(0);
-            });
+        mongoose.connection.close(false).then(() => {
+            console.log("MongoDB connection closed.");
+            process.exit(0);
+        }).catch(() => {
+            process.exit(0);
         });
     });
 
@@ -47,7 +56,7 @@ function shutdown(signal) {
     setTimeout(() => {
         console.error("Forced shutdown after timeout.");
         process.exit(1);
-    }, 10000);
+    }, 4000);
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));

@@ -7,7 +7,7 @@ function getIO(req) {
 }
 
 function handleControllerError(res, error) {
-    const statusCode = error.statusCode || 500;
+    const statusCode = error.statusCode || error.status || 500;
     return res.status(statusCode).json({
         success: false,
         message: error.message || "Internal Server Error",

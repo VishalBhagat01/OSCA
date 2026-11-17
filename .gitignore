@@ -1,2 +1,7 @@
 .agents
 .vscode
+workspaces/
+graphify-out/
+cloned_repos/
+backend/tmp/
+*.log

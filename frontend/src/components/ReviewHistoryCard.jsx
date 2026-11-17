@@ -1,73 +1,58 @@
-import { History, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
+import { History, MessageSquare, ThumbsUp, ThumbsDown, RotateCw } from "lucide-react";
 
-const formatTime = (date) => {
-  if (!date) return "";
-  return new Date(date).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+const ACTION_CONFIG = {
+  approved: { icon: ThumbsUp, color: "text-emerald-400", label: "Approved" },
+  rejected: { icon: ThumbsDown, color: "text-red-400", label: "Rejected" },
+  retry: { icon: RotateCw, color: "text-orange-400", label: "Retry Requested" },
 };
 
-export const ReviewHistoryCard = ({ reviews = [] }) => {
+const ReviewHistoryCard = ({ reviews = [] }) => {
   if (!reviews || reviews.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
-      <div className="flex items-center gap-3 border-b border-zinc-800/80 pb-4">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-800 text-zinc-300 border border-zinc-700/50">
-          <History className="h-4 w-4" />
-        </div>
-        <div>
-          <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-            Human Review Iteration History
-          </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Record of feedback iterations and decisions submitted to the agent
-          </p>
-        </div>
+    <div className="rounded-2xl border border-white/6 bg-[#111111] p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4 text-[#525250]" />
+        <h3 className="text-sm font-semibold text-[#E8E8E3]">
+          Review History
+        </h3>
+        <span className="text-[11px] text-[#525250] font-mono">
+          ({reviews.length})
+        </span>
       </div>
 
-      <div className="mt-4 space-y-3">
-        {reviews.map((rev, index) => {
-          const isRetry = rev.action === "retry";
-          const isApprove = rev.action === "approved";
+      <div className="space-y-3">
+        {reviews.map((review, i) => {
+          const config = ACTION_CONFIG[review.action] || {
+            icon: MessageSquare,
+            color: "text-[#525250]",
+            label: review.action,
+          };
+          const Icon = config.icon;
 
           return (
             <div
-              key={index}
-              className="rounded-xl border border-zinc-800 bg-zinc-950/70 p-3.5 transition hover:border-zinc-700"
+              key={i}
+              className="flex items-start gap-3 rounded-xl bg-white/2 border border-white/4 p-3"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {isRetry ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-300">
-                      <RotateCcw className="h-3 w-3" />
-                      Iteration #{index + 1}
-                    </span>
-                  ) : isApprove ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
-                      <CheckCircle2 className="h-3 w-3" />
-                      Approved
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-2.5 py-0.5 text-xs font-semibold text-rose-300">
-                      <XCircle className="h-3 w-3" />
-                      Rejected
+              <Icon className={`h-4 w-4 shrink-0 mt-0.5 ${config.color}`} />
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className={`font-semibold ${config.color}`}>
+                    {config.label}
+                  </span>
+                  {review.timestamp && (
+                    <span className="text-[#525250] font-mono">
+                      {new Date(review.timestamp).toLocaleString()}
                     </span>
                   )}
                 </div>
-
-                <span className="font-mono text-xs text-zinc-500">
-                  {formatTime(rev.timestamp)}
-                </span>
+                {review.feedback && (
+                  <p className="text-[12px] text-[#737370] leading-relaxed">
+                    {review.feedback}
+                  </p>
+                )}
               </div>
-
-              {rev.feedback && (
-                <p className="mt-2.5 text-xs text-zinc-300 bg-zinc-900/60 p-3 rounded-lg border border-zinc-800 leading-relaxed font-sans">
-                  "{rev.feedback}"
-                </p>
-              )}
             </div>
           );
         })}

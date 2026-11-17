@@ -1,6 +1,6 @@
 from langgraph.graph import StateGraph, END
 
-from agents.nodes.state import AgentState
+from agents.state import AgentState
 from agents.nodes.planner import planner_node, should_generate_patch
 from agents.nodes.patch_generator import patch_generator_node
 from agents.nodes.validators import validation_node

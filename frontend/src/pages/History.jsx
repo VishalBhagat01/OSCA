@@ -127,18 +127,18 @@ export const History = () => {
   }, [runs, selectedFilter, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col">
+    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
       <Navbar />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Execution Dashboard
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#E8E8E3] tracking-tight">
+              Execution History
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-zinc-400">
-              Audit and monitor autonomous agent runs, patch telemetry, and PR statuses.
+            <p className="mt-1 text-xs sm:text-sm text-[#737370]" style={{ fontFamily: "var(--font-sans)" }}>
+              Monitor agent runs, patch telemetry, and PR statuses.
             </p>
           </div>
 
@@ -165,35 +165,35 @@ export const History = () => {
           <StatsSkeleton />
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 space-y-1">
-              <span className="text-xs font-medium text-zinc-400">Total Runs</span>
-              <p className="font-mono text-2xl font-bold text-white">
+            <div className="rounded-xl border border-white/6 bg-[#111111] p-4 space-y-1">
+              <span className="text-xs font-medium text-[#525250]">Total Runs</span>
+              <p className="font-mono text-2xl font-bold text-[#E8E8E3]">
                 {stats.total}
               </p>
             </div>
 
-            <div className="rounded-xl border border-indigo-500/20 bg-indigo-950/10 p-4 space-y-1">
-              <span className="text-xs font-medium text-indigo-300 flex items-center gap-1.5">
+            <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 p-4 space-y-1">
+              <span className="text-xs font-medium text-orange-400 flex items-center gap-1.5">
                 <Activity className="h-3.5 w-3.5" />
-                Active / Running
+                Active
               </span>
-              <p className="font-mono text-2xl font-bold text-indigo-400">
+              <p className="font-mono text-2xl font-bold text-orange-400">
                 {stats.active}
               </p>
             </div>
 
-            <div className="rounded-xl border border-violet-500/20 bg-violet-950/10 p-4 space-y-1">
-              <span className="text-xs font-medium text-violet-300 flex items-center gap-1.5">
+            <div className="rounded-xl border border-amber-500/15 bg-amber-500/5 p-4 space-y-1">
+              <span className="text-xs font-medium text-amber-400 flex items-center gap-1.5">
                 <UserCheck className="h-3.5 w-3.5" />
                 Awaiting Review
               </span>
-              <p className="font-mono text-2xl font-bold text-violet-400">
+              <p className="font-mono text-2xl font-bold text-amber-400">
                 {stats.awaiting}
               </p>
             </div>
 
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-950/10 p-4 space-y-1">
-              <span className="text-xs font-medium text-emerald-300 flex items-center gap-1.5">
+            <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 p-4 space-y-1">
+              <span className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Success Rate
               </span>
@@ -205,7 +205,7 @@ export const History = () => {
         )}
 
         {/* Search & Filter Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/6 pb-4">
           {/* Status Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
             {STATUS_FILTERS.map((f) => (
@@ -215,8 +215,8 @@ export const History = () => {
                 onClick={() => setSelectedFilter(f.id)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
                   selectedFilter === f.id
-                    ? "bg-zinc-800 text-white shadow-sm border border-zinc-700/80"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900"
+                    ? "bg-white/8 text-[#E8E8E3]"
+                    : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
                 }`}
               >
                 {f.label}
@@ -226,20 +226,20 @@ export const History = () => {
 
           {/* Search Box */}
           <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-500" />
+            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#525250]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search repo, issue, title..."
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-3.5 py-1.5 pl-9 text-xs text-white placeholder-zinc-500 outline-none focus:border-indigo-500 transition"
+              className="w-full rounded-xl border border-white/8 bg-[#0A0A0A] px-3.5 py-1.5 pl-9 text-xs text-[#E8E8E3] placeholder-[#525250] outline-none focus:border-orange-500/40 transition"
             />
           </div>
         </div>
 
         {/* Error State */}
         {error && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-400">
+          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-xs text-red-400">
             {error}
           </div>
         )}
@@ -255,17 +255,17 @@ export const History = () => {
 
         {/* Empty State */}
         {!loading && filteredRuns.length === 0 && (
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-12 text-center space-y-3 backdrop-blur">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-800/80 text-zinc-400 border border-zinc-700/50">
+          <div className="rounded-2xl border border-white/6 bg-[#111111] p-12 text-center space-y-3">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-[#525250] border border-white/6">
               <Filter className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-semibold text-white">
-              No executions match your criteria
+            <h3 className="text-base font-semibold text-[#E8E8E3]" style={{ fontFamily: "var(--font-serif)" }}>
+              No executions found
             </h3>
-            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+            <p className="text-xs text-[#737370] max-w-sm mx-auto">
               {searchQuery || selectedFilter !== "all"
-                ? "Try adjusting your search query or status filter to find previous runs."
-                : "Analyze a GitHub issue to launch your first autonomous patch execution."}
+                ? "Try adjusting your search or filter."
+                : "Analyze a GitHub issue to launch your first run."}
             </p>
             <div className="pt-2">
               <Link to="/">
@@ -283,7 +283,7 @@ export const History = () => {
             {filteredRuns.map((run) => (
               <div
                 key={run._id}
-                className="group relative rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 transition-all duration-150 hover:border-zinc-700/90 hover:bg-zinc-850/60 shadow-lg"
+                className="group relative rounded-2xl border border-white/6 bg-[#111111] p-5 transition-all duration-150 hover:border-white/10 hover:bg-[#141414]"
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <Link
@@ -291,32 +291,32 @@ export const History = () => {
                     className="flex-1 space-y-2 min-w-0"
                   >
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <div className="flex items-center gap-1.5 font-medium text-xs sm:text-sm text-white hover:text-indigo-300 transition truncate">
-                        <GitBranch className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                      <div className="flex items-center gap-1.5 font-medium text-xs sm:text-sm text-[#E8E8E3] hover:text-orange-400 transition truncate">
+                        <GitBranch className="h-3.5 w-3.5 text-orange-500 shrink-0" />
                         <span className="truncate">
                           {run.repository?.url || run.repoUrl}
                         </span>
                       </div>
 
-                      <span className="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 font-mono text-[11px] font-semibold text-zinc-300 shrink-0">
+                      <span className="rounded-md border border-white/8 bg-[#0A0A0A] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#A8A8A0] shrink-0">
                         #{run.issue?.number || run.issueNumber}
                       </span>
                     </div>
 
                     {run.issue?.title && (
-                      <p className="text-xs text-zinc-400 line-clamp-1">
+                      <p className="text-xs text-[#737370] line-clamp-1">
                         {run.issue.title}
                       </p>
                     )}
 
-                    <div className="flex items-center gap-4 text-[11px] text-zinc-500 font-mono">
+                    <div className="flex items-center gap-4 text-[11px] text-[#525250] font-mono">
                       <span className="flex items-center gap-1">
                         <CalendarDays className="h-3 w-3" />
                         {formatDate(run.createdAt)}
                       </span>
                       {run.pullRequest?.url && (
-                        <span className="text-indigo-400">
-                          PR #{run.pullRequest.number} Available
+                        <span className="text-orange-400">
+                          PR #{run.pullRequest.number}
                         </span>
                       )}
                     </div>
@@ -325,15 +325,14 @@ export const History = () => {
                   <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                     <StatusBadge status={run.status} size="sm" />
 
-                    {/* Delete Run Button with modal */}
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteTarget(run);
                       }}
-                      className="rounded-lg p-2 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                      title="Delete run from history"
+                      className="rounded-lg p-2 text-[#525250] hover:text-red-400 hover:bg-red-500/10 transition"
+                      title="Delete run"
                       aria-label="Delete run"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -341,7 +340,7 @@ export const History = () => {
 
                     <Link
                       to={`/runs/${run._id}`}
-                      className="rounded-lg p-1.5 text-zinc-500 group-hover:text-white transition"
+                      className="rounded-lg p-1.5 text-[#525250] group-hover:text-[#E8E8E3] transition"
                       aria-label="View run details"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -354,7 +353,7 @@ export const History = () => {
         )}
       </main>
 
-      {/* Delete Run Confirmation Safeguard */}
+      {/* Delete Run Confirmation */}
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}

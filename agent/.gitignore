@@ -27,6 +27,8 @@ htmlcov/
 
 # Agent-created cloned repositories
 repos/
+cloned_repos/
+../cloned_repos/
 
 # RAG / vector database files
 rag/data/

@@ -4,7 +4,7 @@ import os
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from agents.nodes.state import AgentState
+from agents.state import AgentState
 from agents.utils.pr_utils import sanitize_branch_name, slugify_title
 from llm.llm_provider import generate_structured_response
 from agents.utils.execution_trace import add_execution_event, emit_trace_event

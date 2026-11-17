@@ -18,9 +18,9 @@ def build_patch_prompt(
 
     Structured with static instructions first to maximize provider-side prefix prompt caching.
     """
-    # Bound current_code to prevent token exhaustion on huge files
-    if len(current_code) > 10000:
-        code_view = current_code[:10000] + "\n\n# ... [remaining lines truncated for token efficiency]"
+    # Provide the full file up to 150,000 characters to prevent destructive truncation
+    if len(current_code) > 150000:
+        code_view = current_code[:150000]
     else:
         code_view = current_code
 
@@ -36,6 +36,12 @@ SYSTEM INSTRUCTIONS & REPAIR RULES:
 - Never invent custom exceptions unless explicitly requested.
 - Ensure test assertions match the updated implementation code so tests pass.
 - If HUMAN REVIEW FEEDBACK is present, treat it as highest priority.
+
+CRITICAL INTEGRITY & FULL-FILE PRESERVATION RULES:
+- You must return the COMPLETE updated file content from line 1 to the very last line.
+- DO NOT truncate, summarize, or omit ANY existing functions, classes, imports, or docstrings.
+- NEVER write placeholder comments like "# ... [rest of code unchanged]" or "# ... [remaining lines truncated]".
+- Keep every untouched line of code intact exactly as it was.
 
 OUTPUT RULES:
 - Return the complete updated source code in the `content` field.

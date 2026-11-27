@@ -1,0 +1,194 @@
+@import "tailwindcss";
+
+/*
+  Sentra design system
+  --------------------
+  Warm ink canvas, bone-coloured type, one ember accent.
+  Colours are semantic tokens; components never hard-code hex values.
+  Contrast (on --color-ink): bone 15:1, bone-2 8.9:1, bone-3 4.7:1.
+  bone-4 is reserved for decorative rules and disabled states.
+*/
+
+@theme {
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-ink: #0f0e0c;
+  --color-ink-2: #151411;
+  --color-ink-3: #1c1a16;
+  --color-ink-4: #25221d;
+
+  --color-bone: #ece4d3;
+  --color-bone-2: #b9b09d;
+  --color-bone-3: #8a8272;
+  --color-bone-4: #5e584c;
+
+  --color-ember: #e8603c;
+  --color-ember-hi: #f27a58;
+  --color-ember-lo: #b8442a;
+  --color-verdigris: #78b9a0;
+  --color-saffron: #dba948;
+  --color-madder: #d9665c;
+
+  --color-rule: rgb(236 228 211 / 0.1);
+  --color-rule-strong: rgb(236 228 211 / 0.2);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background: var(--color-ink);
+    color: var(--color-bone);
+    color-scheme: dark;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--color-ink);
+    overflow-x: hidden;
+  }
+
+  /* Paper grain: a quiet texture that keeps large dark areas from feeling flat. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  p { text-wrap: pretty; }
+
+  code, pre, kbd, samp { font-family: var(--font-mono); }
+
+  ::selection { background: rgb(232 96 60 / 0.35); color: var(--color-bone); }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ember);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-ink-4); border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-bone-4); }
+}
+
+@layer components {
+  .surface {
+    background: var(--color-ink-2);
+    border: 1px solid var(--color-rule);
+    border-radius: 0.875rem;
+  }
+
+  .surface-raised {
+    background: linear-gradient(180deg, var(--color-ink-3), var(--color-ink-2));
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 0 rgb(236 228 211 / 0.06) inset,
+      0 30px 60px -30px rgb(0 0 0 / 0.8);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-bone-3);
+  }
+
+  .field {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--color-rule-strong);
+    background: transparent;
+    padding: 0.5rem 0 0.625rem;
+    font-family: var(--font-mono);
+    font-size: 0.9375rem;
+    color: var(--color-bone);
+    transition: border-color 200ms var(--ease-out-expo);
+  }
+  .field::placeholder { color: var(--color-bone-4); }
+  .field:hover { border-bottom-color: var(--color-bone-3); }
+  .field:focus { outline: none; border-bottom-color: var(--color-ember); }
+  .field:disabled { opacity: 0.5; }
+  .field::-webkit-outer-spin-button,
+  .field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .field[type="number"] { -moz-appearance: textfield; }
+
+  .field-box {
+    width: 100%;
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 0.625rem;
+    background: var(--color-ink);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--color-bone);
+    transition: border-color 200ms var(--ease-out-expo);
+  }
+  .field-box::placeholder { color: var(--color-bone-4); }
+  .field-box:focus { outline: none; border-color: var(--color-ember); }
+
+  .link-arrow { transition: transform 300ms var(--ease-out-expo); }
+  .group:hover .link-arrow { transform: translate(2px, -2px); }
+}
+
+/* Entrance choreography: one staggered reveal per page, not scattered motion. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 900ms var(--ease-out-expo) both; animation-delay: calc(var(--i, 0) * 90ms); }
+
+@keyframes shimmer { to { transform: translateX(100%); } }
+.shimmer { position: relative; overflow: hidden; }
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(236 228 211 / 0.05), transparent);
+  animation: shimmer 1.8s infinite;
+}
+
+@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes pulse-ring {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes flow { to { stroke-dashoffset: -24; } }
+
+.orbit-slow { transform-origin: center; animation: orbit 90s linear infinite; }
+.orbit-rev { transform-origin: center; animation: orbit 140s linear infinite reverse; }
+.flow-line { stroke-dasharray: 3 9; animation: flow 1.6s linear infinite; }
+
+.diff-gutter { user-select: none; -webkit-user-select: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

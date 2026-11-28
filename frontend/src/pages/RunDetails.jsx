@@ -1,18 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import {
-  ChevronLeft,
-  Copy,
-  Check,
-  RotateCw,
-  Trash2,
-  GitBranch,
-  ExternalLink,
-  Code2,
-  Brain,
-  ListTree,
-} from "lucide-react";
+import { ChevronLeft, Copy, Check, RotateCw, Trash2, ExternalLink } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import StatusBadge from "../components/StatusBadge";
@@ -33,6 +22,15 @@ import PRMetadataCard from "../components/PRMetadataCard";
 import useRun from "../hooks/useRun";
 import socket from "../socket";
 import runService from "../services/runService";
+
+const Shell = ({ children, narrow = false }) => (
+  <div className="flex min-h-screen flex-col">
+    <Navbar />
+    <main className={`mx-auto w-full flex-1 px-5 sm:px-8 ${narrow ? "max-w-xl py-24" : "max-w-7xl space-y-6 py-12"}`}>
+      {children}
+    </main>
+  </div>
+);
 
 export const RunDetails = () => {
   const { id } = useParams();
@@ -146,50 +144,34 @@ export const RunDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
-        <Navbar />
-        <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-9 w-24 rounded-xl" />
-          </div>
-          <RunCardSkeleton />
-          <div className="rounded-2xl border border-white/6 bg-[#111111] p-8 space-y-4">
-            <Skeleton className="h-6 w-60" />
-            <Skeleton className="h-32 w-full rounded-xl" />
-          </div>
-        </main>
-      </div>
+      <Shell>
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-12 w-2/3" />
+        <RunCardSkeleton />
+        <Skeleton className="h-72 w-full rounded-2xl" />
+      </Shell>
     );
   }
 
   if (error || !run) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
-        <Navbar />
-        <main className="max-w-xl mx-auto w-full px-4 py-20 text-center space-y-4">
-          <div className="rounded-2xl border border-red-500/20 bg-[#111111] p-8 space-y-4 shadow-2xl">
-            <h2 className="text-xl font-bold text-[#E8E8E3]" style={{ fontFamily: "var(--font-serif)" }}>
-              Execution Not Found
-            </h2>
-            <p className="text-sm text-red-300">
-              {error || "The requested run ID does not exist or may have been deleted."}
-            </p>
-            <div className="pt-2 flex justify-center gap-3">
-              <Link to="/history">
-                <Button variant="secondary" size="sm">
-                  View History
-                </Button>
-              </Link>
-              <Link to="/">
-                <Button variant="primary" size="sm">
-                  Start New Run
-                </Button>
-              </Link>
-            </div>
+      <Shell narrow>
+        <div className="space-y-6 text-center">
+          <p className="eyebrow">404</p>
+          <h2 className="font-display text-5xl font-light text-bone">Run not found</h2>
+          <p className="text-sm text-bone-2">
+            {error || "This run does not exist, or it was deleted."}
+          </p>
+          <div className="flex justify-center gap-3 pt-2">
+            <Link to="/history">
+              <Button variant="secondary" size="sm">History</Button>
+            </Link>
+            <Link to="/">
+              <Button size="sm">New run</Button>
+            </Link>
           </div>
-        </main>
-      </div>
+        </div>
+      </Shell>
     );
   }
 
@@ -197,202 +179,125 @@ export const RunDetails = () => {
   const analysis = run.result?.analysis;
   const prMetadata = run.result?.pr_metadata;
   const pullRequest = run.pullRequest;
+  const repoPath = (run.repository?.url || run.repoUrl || "").replace("https://github.com/", "");
+  const issueNo = run.issue?.number || run.issueNumber;
+
+  const TABS = [
+    { id: "all", label: "Overview" },
+    { id: "patch", label: "Patch and checks" },
+    { id: "planner", label: "Plan" },
+    { id: "trace", label: "Trace" },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Navigation Breadcrumbs & Actions Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-white/6 pb-5">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2 text-xs text-[#525250]">
-              <Link
-                to="/history"
-                className="hover:text-[#E8E8E3] transition flex items-center gap-1 font-medium"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-                History
-              </Link>
-              <span>/</span>
-              <span className="font-mono text-[#A8A8A0]">
-                run_{id?.slice(-8)}
-              </span>
-            </div>
+      <main className="mx-auto w-full max-w-7xl flex-1 space-y-10 px-5 py-12 sm:px-8">
+        <header className="rise space-y-6">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 font-mono text-[11px] text-bone-3">
+            <Link to="/history" className="inline-flex items-center gap-1 transition-colors hover:text-bone">
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+              History
+            </Link>
+            <span aria-hidden>/</span>
+            <span className="text-bone-2">run_{id?.slice(-8)}</span>
+          </nav>
 
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-[#E8E8E3] tracking-tight">
-                Run #{id?.slice(-6)}
+          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+            <div className="min-w-0 space-y-4">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                <StatusBadge status={run.status} />
+                <button
+                  type="button"
+                  onClick={copyRunId}
+                  className="inline-flex cursor-pointer items-center gap-1.5 font-mono text-[11px] text-bone-3 transition-colors hover:text-bone"
+                  title="Copy full run ID"
+                >
+                  {copiedId ? <Check className="h-3 w-3 text-verdigris" /> : <Copy className="h-3 w-3" />}
+                  {id?.slice(0, 8)}
+                </button>
+              </div>
+              <h1 className="max-w-4xl font-display text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.05] font-light text-bone">
+                <span className="text-ember tabular-nums">#{issueNo}</span>{" "}
+                {run.issue?.title || "Untitled issue"}
               </h1>
+              <p className="font-mono text-[13px] text-bone-3">{repoPath}</p>
+            </div>
 
-              <StatusBadge status={run.status} size="sm" />
-
-              {/* Copy Run ID */}
-              <button
-                type="button"
-                onClick={copyRunId}
-                className="inline-flex items-center gap-1 rounded-md border border-white/8 bg-[#111111] px-2 py-0.5 font-mono text-[11px] text-[#525250] hover:text-[#E8E8E3] transition"
-                title="Copy full run ID"
-              >
-                {copiedId ? (
-                  <Check className="h-3 w-3 text-emerald-400" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
-                <span>id:{id?.slice(0, 8)}...</span>
-              </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {run.repository?.url && (
+                <a
+                  href={run.repository.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-rule-strong px-3.5 text-[13px] text-bone-2 transition hover:border-bone-3 hover:text-bone"
+                >
+                  Repository
+                  <ExternalLink className="h-3 w-3 text-bone-3" aria-hidden />
+                </a>
+              )}
+              <Button variant="outline" size="sm" icon={RotateCw} loading={isFetching} onClick={() => refetch({ silent: false })}>
+                Sync
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Trash2}
+                onClick={() => setShowDeleteModal(true)}
+                className="hover:!bg-madder/10 hover:!text-madder"
+                aria-label="Delete run"
+              />
             </div>
           </div>
+        </header>
 
-          {/* Quick Header Actions */}
-          <div className="flex items-center gap-2.5 self-start sm:self-auto">
-            {run.repository?.url && (
-              <a
-                href={run.repository.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-white/8 px-3 py-2 text-xs font-medium text-[#A8A8A0] hover:text-[#E8E8E3] hover:border-white/12 transition"
-              >
-                <GitBranch className="h-3.5 w-3.5 text-orange-500" />
-                <span className="hidden md:inline">GitHub</span>
-                <ExternalLink className="h-3 w-3 text-[#525250]" />
-              </a>
-            )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              icon={RotateCw}
-              loading={isFetching}
-              onClick={() => refetch({ silent: false })}
-              title="Refresh run state"
-            >
-              Sync
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={Trash2}
-              onClick={() => setShowDeleteModal(true)}
-              className="text-[#525250] hover:text-red-400 hover:bg-red-500/10"
-              title="Delete run"
-            />
-          </div>
-        </div>
-
-        {/* Active Running State Banner */}
         <ActiveRunningCard run={run} />
-
-        {/* Metric KPI Cards */}
         <RunCard run={run} />
+        <HumanReviewCard run={run} onApprove={approve} onReject={reject} onRetry={retry} loading={actionLoading} />
 
-        {/* Human-in-the-Loop Review Card */}
-        <HumanReviewCard
-          run={run}
-          onApprove={approve}
-          onReject={reject}
-          onRetry={retry}
-          loading={actionLoading}
-        />
-
-        {/* View Mode Navigation Tabs */}
-        <div className="flex items-center gap-1 border-b border-white/6 pb-3 overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab("all")}
-            className={`rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
-              activeTab === "all"
-                ? "bg-white/8 text-[#E8E8E3]"
-                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
-            }`}
-          >
-            All Sections
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("patch")}
-            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
-              activeTab === "patch"
-                ? "bg-white/8 text-[#E8E8E3]"
-                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
-            }`}
-          >
-            <Code2 className="h-3.5 w-3.5 text-emerald-400" />
-            Patch & Verification
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("planner")}
-            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
-              activeTab === "planner"
-                ? "bg-white/8 text-[#E8E8E3]"
-                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
-            }`}
-          >
-            <Brain className="h-3.5 w-3.5 text-amber-400" />
-            Planner Analysis
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("trace")}
-            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium whitespace-nowrap transition ${
-              activeTab === "trace"
-                ? "bg-white/8 text-[#E8E8E3]"
-                : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
-            }`}
-          >
-            <ListTree className="h-3.5 w-3.5 text-orange-400" />
-            Trace & History
-          </button>
+        <div role="tablist" aria-label="Run sections" className="-mb-2 flex items-center gap-7 overflow-x-auto border-b border-rule">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`-mb-px cursor-pointer border-b py-3 text-[13px] font-medium whitespace-nowrap transition-colors ${
+                activeTab === t.id ? "border-ember text-bone" : "border-transparent text-bone-3 hover:text-bone"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {/* Section: Pull Request Metadata Card */}
         {(activeTab === "all" || activeTab === "patch") && (
-          <PRMetadataCard
-            prMetadata={prMetadata}
-            pullRequest={pullRequest}
-          />
+          <>
+            <PRMetadataCard prMetadata={prMetadata} pullRequest={pullRequest} />
+            <TestResultsCard proposedPatch={proposedPatch} />
+            <PatchCard diff={proposedPatch?.diff} />
+          </>
         )}
 
-        {/* Section: Test Results & Acceptance Card */}
-        {(activeTab === "all" || activeTab === "patch") && (
-          <TestResultsCard proposedPatch={proposedPatch} />
-        )}
+        {(activeTab === "all" || activeTab === "planner") && <PlannerCard analysis={analysis} />}
 
-        {/* Section: Synthesized Code Diff Card */}
-        {(activeTab === "all" || activeTab === "patch") && (
-          <PatchCard diff={proposedPatch?.diff} />
-        )}
-
-        {/* Section: Planner Analysis Card */}
-        {(activeTab === "all" || activeTab === "planner") && (
-          <PlannerCard analysis={analysis} />
-        )}
-
-        {/* Section: Execution Trace & Review History */}
         {(activeTab === "all" || activeTab === "trace") && (
-          <div className="space-y-8">
-            <Timeline
-              trace={run.executionTrace || []}
-              isRunning={isLive}
-            />
+          <div className="grid items-start gap-6 lg:grid-cols-2">
+            <Timeline trace={run.executionTrace || []} isRunning={isLive} />
             <ReviewHistoryCard reviews={run.reviews || []} />
           </div>
         )}
       </main>
 
-      {/* Delete Run Confirmation */}
       <ConfirmDialog
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
-        title="Delete This Execution Run?"
-        description="Are you sure? All execution telemetry, diffs, and review history will be permanently deleted."
-        confirmText="Yes, Delete Run"
+        title="Delete this run?"
+        description="Its telemetry, diffs and review history will be removed for good."
+        confirmText="Delete run"
         variant="danger"
         loading={deleting}
       />

@@ -1,34 +1,25 @@
-import { Loader2, Cpu } from "lucide-react";
+const COPY = {
+  queued: { title: "Queued", body: "Waiting for a worker to pick this run up." },
+  running: { title: "The agent is working", body: "Reading the repository, planning and generating a patch. This page updates live." },
+  publishing: { title: "Publishing", body: "Pushing the branch and opening the draft pull request." },
+};
 
 const ActiveRunningCard = ({ run }) => {
-  if (!run || !["running", "queued", "publishing"].includes(run.status)) {
-    return null;
-  }
-
-  const messages = {
-    queued: "Run is queued and waiting to start...",
-    running: "Agent is actively analyzing and generating patches...",
-    publishing: "Publishing draft pull request to GitHub...",
-  };
+  const copy = COPY[run?.status];
+  if (!copy) return null;
 
   return (
-    <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500/10 border border-orange-500/15">
-          {run.status === "queued" ? (
-            <Cpu className="h-5 w-5 text-orange-500" />
-          ) : (
-            <Loader2 className="h-5 w-5 text-orange-500 animate-spin" />
-          )}
-        </div>
-        <div className="space-y-0.5">
-          <h3 className="text-sm font-semibold text-orange-400">
-            {run.status === "queued" ? "Queued" : run.status === "publishing" ? "Publishing PR" : "Agent Running"}
-          </h3>
-          <p className="text-[12px] text-[#737370]">
-            {messages[run.status]}
-          </p>
-        </div>
+    <div
+      role="status"
+      className="relative flex items-center gap-5 overflow-hidden rounded-2xl border border-ember/30 bg-ember/[0.05] p-6"
+    >
+      <span className="relative flex h-3 w-3 shrink-0">
+        <span className="absolute inset-0 rounded-full bg-ember" style={{ animation: "pulse-ring 1.8s ease-out infinite" }} />
+        <span className="relative h-3 w-3 rounded-full bg-ember" />
+      </span>
+      <div>
+        <h3 className="font-display text-xl text-bone">{copy.title}</h3>
+        <p className="mt-0.5 text-[13px] text-bone-2">{copy.body}</p>
       </div>
     </div>
   );

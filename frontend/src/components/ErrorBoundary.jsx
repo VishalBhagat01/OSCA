@@ -1,5 +1,5 @@
 import { Component } from "react";
-import { AlertTriangle, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import Button from "./ui/Button";
 
 class ErrorBoundary extends Component {
@@ -23,26 +23,15 @@ class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center p-6">
-          <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-[#111111] p-8 text-center space-y-5 shadow-2xl">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-500/10 text-red-400 border border-red-500/15">
-              <AlertTriangle className="h-7 w-7" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-xl font-bold text-[#E8E8E3]" style={{ fontFamily: "var(--font-serif)" }}>
-                Something went wrong
-              </h2>
-              <p className="text-[13px] text-[#737370]">
-                {this.state.error?.message || "An unexpected error occurred."}
-              </p>
-            </div>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={RotateCw}
-              onClick={this.handleReset}
-            >
-              Try Again
+        <div role="alert" className="flex min-h-screen items-center justify-center p-6">
+          <div className="max-w-md space-y-6 text-center">
+            <p className="eyebrow !text-madder">Unexpected error</p>
+            <h2 className="font-display text-5xl font-light text-bone">Something broke.</h2>
+            <p className="text-sm text-bone-2">
+              {this.state.error?.message || "An unexpected error occurred."}
+            </p>
+            <Button variant="secondary" size="sm" icon={RotateCw} onClick={this.handleReset}>
+              Try again
             </Button>
           </div>
         </div>

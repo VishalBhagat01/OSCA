@@ -1,100 +1,70 @@
-import { CheckCircle2, XCircle, ShieldCheck, AlertTriangle, FlaskConical, ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import Panel from "./ui/Panel";
+
+const Verdict = ({ ok, children, warn = false }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 font-mono text-[11px] tracking-[0.1em] uppercase ${
+      ok ? "text-verdigris" : warn ? "text-saffron" : "text-madder"
+    }`}
+  >
+    <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-verdigris" : warn ? "bg-saffron" : "bg-madder"}`} />
+    {children}
+  </span>
+);
 
 const TestResultsCard = ({ proposedPatch }) => {
-  const [expanded, setExpanded] = useState(false);
-
   if (!proposedPatch) return null;
 
-  const {
-    tests_passed,
-    test_result,
-    acceptance_passed,
-    acceptance_violations,
-    retry_count,
-  } = proposedPatch;
-
+  const { tests_passed, test_result, acceptance_passed, acceptance_violations, retry_count } = proposedPatch;
   const hasTestData = test_result && Object.keys(test_result).length > 0;
   const hasAcceptance = acceptance_passed !== undefined;
 
   if (!hasTestData && !hasAcceptance) return null;
 
   return (
-    <div className="rounded-2xl border border-white/6 bg-[#111111] overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-5 text-left hover:bg-white/2 transition"
-      >
-        <div className="flex items-center gap-3">
-          <div className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
-            tests_passed && acceptance_passed !== false
-              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/15"
-              : "bg-red-500/10 text-red-400 border-red-500/15"
-          }`}>
-            <FlaskConical className="h-4 w-4" />
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-[#E8E8E3]">
-              Test & Acceptance Results
-            </h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              {tests_passed !== undefined && (
-                <span className={`flex items-center gap-1 text-[11px] font-medium ${tests_passed ? "text-emerald-400" : "text-red-400"}`}>
-                  {tests_passed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                  Tests {tests_passed ? "Passed" : "Failed"}
-                </span>
-              )}
-              {hasAcceptance && (
-                <span className={`flex items-center gap-1 text-[11px] font-medium ${acceptance_passed ? "text-emerald-400" : "text-amber-400"}`}>
-                  {acceptance_passed ? <ShieldCheck className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                  Acceptance {acceptance_passed ? "Passed" : "Failed"}
-                </span>
-              )}
-              {retry_count > 0 && (
-                <span className="text-[11px] text-[#525250] font-mono">
-                  {retry_count} {retry_count === 1 ? "retry" : "retries"}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        {expanded ? <ChevronUp className="h-4 w-4 text-[#525250]" /> : <ChevronDown className="h-4 w-4 text-[#525250]" />}
-      </button>
-
-      {expanded && (
-        <div className="border-t border-white/6 p-5 space-y-4">
-          {/* Test Results Detail */}
-          {hasTestData && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-[#A8A8A0] uppercase tracking-wider">
-                Test Output
-              </h4>
-              <pre className="rounded-xl bg-[#0A0A0A] border border-white/6 p-3 text-[11px] font-mono text-[#A8A8A0] overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">
-                {typeof test_result === "string"
-                  ? test_result
-                  : JSON.stringify(test_result, null, 2)}
-              </pre>
-            </div>
+    <Panel
+      eyebrow="Verification"
+      title="Tests and acceptance"
+      meta={
+        <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
+          {tests_passed !== undefined && <Verdict ok={tests_passed}>Tests {tests_passed ? "passed" : "failed"}</Verdict>}
+          {hasAcceptance && (
+            <Verdict ok={acceptance_passed} warn>
+              Acceptance {acceptance_passed ? "passed" : "failed"}
+            </Verdict>
           )}
-
-          {/* Acceptance Violations */}
-          {acceptance_violations && acceptance_violations.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 uppercase tracking-wider">
-                <AlertTriangle className="h-3 w-3" />
-                Acceptance Violations
-              </h4>
-              <ul className="space-y-1 list-disc list-inside">
-                {acceptance_violations.map((v, i) => (
-                  <li key={i} className="text-[12px] text-[#737370]">{v}</li>
-                ))}
-              </ul>
-            </div>
+          {retry_count > 0 && (
+            <span className="font-mono text-[11px] text-bone-3">
+              {retry_count} {retry_count === 1 ? "retry" : "retries"}
+            </span>
           )}
+        </span>
+      }
+      collapsible
+      defaultOpen={false}
+      bodyClassName="p-6 space-y-6"
+    >
+      {hasTestData && (
+        <div className="space-y-2">
+          <h4 className="eyebrow">Test output</h4>
+          <pre className="max-h-64 overflow-auto rounded-xl border border-rule bg-ink p-4 text-[12px] leading-relaxed whitespace-pre-wrap text-bone-2">
+            {typeof test_result === "string" ? test_result : JSON.stringify(test_result, null, 2)}
+          </pre>
         </div>
       )}
-    </div>
+
+      {acceptance_violations?.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="eyebrow !text-saffron">Acceptance violations</h4>
+          <ul className="space-y-1.5">
+            {acceptance_violations.map((v, i) => (
+              <li key={i} className="border-l-2 border-saffron/50 pl-3 text-[13px] text-bone-2">
+                {v}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </Panel>
   );
 };
 

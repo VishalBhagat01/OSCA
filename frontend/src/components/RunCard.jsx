@@ -1,81 +1,36 @@
-import { GitBranch, Hash, Clock, CalendarDays } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import { formatDate } from "../utils/formatters";
+
+const formatDuration = (sec) => {
+  if (!sec) return "n/a";
+  if (sec < 60) return `${sec}s`;
+  return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+};
 
 const RunCard = ({ run }) => {
   if (!run) return null;
 
-  const duration = run.completedAt && run.startedAt
-    ? Math.round((new Date(run.completedAt) - new Date(run.startedAt)) / 1000)
-    : null;
+  const duration =
+    run.completedAt && run.startedAt
+      ? Math.round((new Date(run.completedAt) - new Date(run.startedAt)) / 1000)
+      : null;
 
-  const formatDuration = (sec) => {
-    if (!sec) return "—";
-    if (sec < 60) return `${sec}s`;
-    const min = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${min}m ${s}s`;
-  };
+  const cells = [
+    { label: "Issue", value: <span className="font-mono tabular-nums">#{run.issue?.number || run.issueNumber}</span> },
+    { label: "Status", value: <StatusBadge status={run.status} /> },
+    { label: duration ? "Duration" : "Created", value: <span className="font-mono tabular-nums">{duration ? formatDuration(duration) : formatDate(run.createdAt)}</span> },
+    { label: "Retries", value: <span className="font-mono tabular-nums">{run.result?.proposed_patch?.retry_count ?? 0}</span> },
+  ];
 
   return (
-    <div className="rounded-2xl border border-white/6 bg-[#111111] p-5">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {/* Repository */}
-        <div className="space-y-1.5">
-          <span className="text-[11px] font-medium text-[#525250] uppercase tracking-wider">
-            Repository
-          </span>
-          <div className="flex items-center gap-1.5 text-[13px] font-medium text-[#E8E8E3] truncate">
-            <GitBranch className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-            <span className="truncate">{run.repository?.url || run.repoUrl}</span>
-          </div>
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-rule bg-rule sm:grid-cols-4">
+      {cells.map((c) => (
+        <div key={c.label} className="space-y-2 bg-ink-2 px-5 py-4">
+          <dt className="eyebrow">{c.label}</dt>
+          <dd className="text-[15px] text-bone">{c.value}</dd>
         </div>
-
-        {/* Issue */}
-        <div className="space-y-1.5">
-          <span className="text-[11px] font-medium text-[#525250] uppercase tracking-wider">
-            Issue
-          </span>
-          <div className="flex items-center gap-1.5">
-            <Hash className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-            <span className="font-mono text-[13px] font-semibold text-[#E8E8E3]">
-              {run.issue?.number || run.issueNumber}
-            </span>
-          </div>
-          {run.issue?.title && (
-            <p className="text-[11px] text-[#737370] truncate">{run.issue.title}</p>
-          )}
-        </div>
-
-        {/* Status */}
-        <div className="space-y-1.5">
-          <span className="text-[11px] font-medium text-[#525250] uppercase tracking-wider">
-            Status
-          </span>
-          <StatusBadge status={run.status} />
-        </div>
-
-        {/* Duration / Created */}
-        <div className="space-y-1.5">
-          <span className="text-[11px] font-medium text-[#525250] uppercase tracking-wider">
-            {duration ? "Duration" : "Created"}
-          </span>
-          <div className="flex items-center gap-1.5 text-[13px] text-[#A8A8A0]">
-            {duration ? (
-              <>
-                <Clock className="h-3.5 w-3.5 text-[#525250]" />
-                <span className="font-mono">{formatDuration(duration)}</span>
-              </>
-            ) : (
-              <>
-                <CalendarDays className="h-3.5 w-3.5 text-[#525250]" />
-                <span className="font-mono text-xs">{formatDate(run.createdAt)}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+      ))}
+    </dl>
   );
 };
 

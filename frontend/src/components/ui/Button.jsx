@@ -2,22 +2,22 @@ import { Loader2 } from "lucide-react";
 
 const VARIANTS = {
   primary:
-    "bg-orange-500 text-white hover:bg-orange-600 active:bg-orange-700 border-orange-600/50 shadow-sm",
+    "bg-ember text-ink hover:bg-ember-hi active:bg-ember-lo border-transparent",
   secondary:
-    "bg-white/6 text-[#E8E8E3] hover:bg-white/10 border-white/8",
+    "bg-bone/8 text-bone hover:bg-bone/14 border-rule-strong",
   outline:
-    "bg-transparent text-[#A8A8A0] hover:bg-white/4 hover:text-[#E8E8E3] border-white/10",
+    "bg-transparent text-bone-2 hover:text-bone hover:border-bone-3 border-rule-strong",
   ghost:
-    "bg-transparent text-[#737370] hover:bg-white/4 hover:text-[#A8A8A0] border-transparent",
+    "bg-transparent text-bone-3 hover:text-bone hover:bg-bone/6 border-transparent",
   danger:
-    "bg-red-600 text-white hover:bg-red-700 border-red-700/50 shadow-sm",
+    "bg-madder text-ink hover:brightness-110 active:brightness-95 border-transparent",
 };
 
 const SIZES = {
-  xs: "px-2 py-1 text-[11px] rounded-lg gap-1",
-  sm: "px-3 py-1.5 text-xs rounded-xl gap-1.5",
-  md: "px-4 py-2 text-sm rounded-xl gap-2",
-  lg: "px-5 py-3 text-sm rounded-xl gap-2 font-semibold",
+  xs: "h-7 px-2.5 text-[11px] gap-1 rounded-md",
+  sm: "h-9 px-3.5 text-[13px] gap-1.5 rounded-lg",
+  md: "h-10 px-4 text-sm gap-2 rounded-lg",
+  lg: "h-12 px-6 text-[15px] gap-2.5 rounded-xl font-semibold",
 };
 
 const Button = ({
@@ -29,21 +29,19 @@ const Button = ({
   icon: Icon,
   className = "",
   ...props
-}) => {
-  return (
-    <button
-      disabled={disabled || loading}
-      className={`inline-flex items-center justify-center border font-medium transition-all duration-150 disabled:opacity-50 disabled:pointer-events-none cursor-pointer ${VARIANTS[variant] || VARIANTS.primary} ${SIZES[size] || SIZES.md} ${className}`}
-      {...props}
-    >
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : Icon ? (
-        <Icon className="h-4 w-4" />
-      ) : null}
-      {children}
-    </button>
-  );
-};
+}) => (
+  <button
+    disabled={disabled || loading}
+    className={`inline-flex cursor-pointer items-center justify-center border font-medium whitespace-nowrap transition-[background-color,border-color,color,transform] duration-200 active:translate-y-px disabled:pointer-events-none disabled:opacity-45 ${VARIANTS[variant] ?? VARIANTS.primary} ${SIZES[size] ?? SIZES.md} ${className}`}
+    {...props}
+  >
+    {loading ? (
+      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+    ) : Icon ? (
+      <Icon className="h-4 w-4" aria-hidden />
+    ) : null}
+    {children}
+  </button>
+);
 
 export default Button;

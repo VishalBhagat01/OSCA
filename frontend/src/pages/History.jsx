@@ -1,18 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import {
-  GitBranch,
-  CalendarDays,
-  ChevronRight,
-  Search,
-  Trash2,
-  Filter,
-  PlusCircle,
-  Activity,
-  CheckCircle2,
-  UserCheck,
-  RotateCw,
-} from "lucide-react";
+import { Search, Trash2, RotateCw, Plus, ArrowUpRight } from "lucide-react";
 import toast from "react-hot-toast";
 import runService from "../services/runService";
 import Navbar from "../components/Navbar";
@@ -126,97 +114,67 @@ export const History = () => {
     });
   }, [runs, selectedFilter, searchQuery]);
 
+  const kpis = [
+    { label: "Total runs", value: stats.total, tone: "text-bone" },
+    { label: "In flight", value: stats.active, tone: "text-ember" },
+    { label: "Needs review", value: stats.awaiting, tone: "text-saffron" },
+    { label: "Success rate", value: `${stats.rate}%`, tone: "text-verdigris" },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col">
+    <div className="flex min-h-screen flex-col">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#E8E8E3] tracking-tight">
-              Execution History
-            </h1>
-            <p className="mt-1 text-xs sm:text-sm text-[#737370]" style={{ fontFamily: "var(--font-sans)" }}>
-              Monitor agent runs, patch telemetry, and PR statuses.
+      <main className="mx-auto w-full max-w-7xl flex-1 space-y-12 px-5 py-14 sm:px-8">
+        <header className="rise flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
+          <div className="space-y-3">
+            <p className="eyebrow">Ledger</p>
+            <h1 className="font-display text-5xl font-light text-bone">Execution history</h1>
+            <p className="max-w-md text-[15px] text-bone-2">
+              Every agent run, with its patch, its tests and what you decided.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 self-start sm:self-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={RotateCw}
-              onClick={fetchRuns}
-              disabled={loading}
-            >
+          <div className="flex items-center gap-2.5">
+            <Button variant="outline" size="sm" icon={RotateCw} onClick={fetchRuns} disabled={loading}>
               Refresh
             </Button>
             <Link to="/">
-              <Button variant="primary" size="sm" icon={PlusCircle}>
-                New Analysis
+              <Button size="sm" icon={Plus}>
+                New run
               </Button>
             </Link>
           </div>
-        </div>
+        </header>
 
-        {/* KPI Stats Bar */}
         {loading ? (
           <StatsSkeleton />
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            <div className="rounded-xl border border-white/6 bg-[#111111] p-4 space-y-1">
-              <span className="text-xs font-medium text-[#525250]">Total Runs</span>
-              <p className="font-mono text-2xl font-bold text-[#E8E8E3]">
-                {stats.total}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-orange-500/15 bg-orange-500/5 p-4 space-y-1">
-              <span className="text-xs font-medium text-orange-400 flex items-center gap-1.5">
-                <Activity className="h-3.5 w-3.5" />
-                Active
-              </span>
-              <p className="font-mono text-2xl font-bold text-orange-400">
-                {stats.active}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-amber-500/15 bg-amber-500/5 p-4 space-y-1">
-              <span className="text-xs font-medium text-amber-400 flex items-center gap-1.5">
-                <UserCheck className="h-3.5 w-3.5" />
-                Awaiting Review
-              </span>
-              <p className="font-mono text-2xl font-bold text-amber-400">
-                {stats.awaiting}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-emerald-500/15 bg-emerald-500/5 p-4 space-y-1">
-              <span className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Success Rate
-              </span>
-              <p className="font-mono text-2xl font-bold text-emerald-400">
-                {stats.rate}%
-              </p>
-            </div>
-          </div>
+          <dl className="rise grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-rule bg-rule sm:grid-cols-4" style={{ "--i": 1 }}>
+            {kpis.map((k) => (
+              <div key={k.label} className="bg-ink-2 p-5 sm:p-6">
+                <dt className="eyebrow">{k.label}</dt>
+                <dd className={`mt-3 font-display text-5xl leading-none font-light tabular-nums ${k.tone}`}>
+                  {k.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
         )}
 
-        {/* Search & Filter Toolbar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/6 pb-4">
-          {/* Status Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex flex-col justify-between gap-4 border-b border-rule sm:flex-row sm:items-center">
+          <div role="tablist" aria-label="Filter runs" className="-mb-px flex items-center gap-6 overflow-x-auto">
             {STATUS_FILTERS.map((f) => (
               <button
                 key={f.id}
                 type="button"
+                role="tab"
+                aria-selected={selectedFilter === f.id}
                 onClick={() => setSelectedFilter(f.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition ${
+                className={`cursor-pointer border-b py-3 text-[13px] font-medium whitespace-nowrap transition-colors ${
                   selectedFilter === f.id
-                    ? "bg-white/8 text-[#E8E8E3]"
-                    : "text-[#525250] hover:text-[#A8A8A0] hover:bg-white/3"
+                    ? "border-ember text-bone"
+                    : "border-transparent text-bone-3 hover:text-bone"
                 }`}
               >
                 {f.label}
@@ -224,27 +182,25 @@ export const History = () => {
             ))}
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-[#525250]" />
+          <label className="relative mb-3 w-full sm:mb-0 sm:w-72">
+            <span className="sr-only">Search runs</span>
+            <Search className="pointer-events-none absolute top-1/2 left-0 h-3.5 w-3.5 -translate-y-1/2 text-bone-3" aria-hidden />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search repo, issue, title..."
-              className="w-full rounded-xl border border-white/8 bg-[#0A0A0A] px-3.5 py-1.5 pl-9 text-xs text-[#E8E8E3] placeholder-[#525250] outline-none focus:border-orange-500/40 transition"
+              placeholder="Search repo, issue, title"
+              className="field !py-2 pl-6 !text-[13px]"
             />
-          </div>
+          </label>
         </div>
 
-        {/* Error State */}
         {error && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-xs text-red-400">
+          <div role="alert" className="rounded-xl border border-madder/30 bg-madder/5 p-4 text-sm text-madder">
             {error}
           </div>
         )}
 
-        {/* Loading Skeletons */}
         {loading && (
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
@@ -253,116 +209,76 @@ export const History = () => {
           </div>
         )}
 
-        {/* Empty State */}
         {!loading && filteredRuns.length === 0 && (
-          <div className="rounded-2xl border border-white/6 bg-[#111111] p-12 text-center space-y-3">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-[#525250] border border-white/6">
-              <Filter className="h-6 w-6" />
-            </div>
-            <h3 className="text-base font-semibold text-[#E8E8E3]" style={{ fontFamily: "var(--font-serif)" }}>
-              No executions found
-            </h3>
-            <p className="text-xs text-[#737370] max-w-sm mx-auto">
+          <div className="surface px-6 py-20 text-center">
+            <h3 className="font-display text-3xl font-light text-bone">Nothing here yet</h3>
+            <p className="mx-auto mt-3 max-w-sm text-sm text-bone-2">
               {searchQuery || selectedFilter !== "all"
-                ? "Try adjusting your search or filter."
-                : "Analyze a GitHub issue to launch your first run."}
+                ? "No run matches this filter. Widen the search or pick another tab."
+                : "Point Sentra at a GitHub issue and the first run will appear here."}
             </p>
-            <div className="pt-2">
-              <Link to="/">
-                <Button variant="primary" size="sm" icon={PlusCircle}>
-                  Start First Run
-                </Button>
-              </Link>
-            </div>
+            <Link to="/" className="mt-8 inline-block">
+              <Button size="sm" icon={Plus}>
+                Start a run
+              </Button>
+            </Link>
           </div>
         )}
 
-        {/* Runs List */}
         {!loading && filteredRuns.length > 0 && (
-          <div className="space-y-3">
-            {filteredRuns.map((run) => (
-              <div
-                key={run._id}
-                className="group relative rounded-2xl border border-white/6 bg-[#111111] p-5 transition-all duration-150 hover:border-white/10 hover:bg-[#141414]"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <ul className="divide-y divide-rule border-y border-rule">
+            {filteredRuns.map((run) => {
+              const repo = (run.repository?.url || run.repoUrl || "").replace("https://github.com/", "");
+              return (
+                <li key={run._id} className="group relative">
                   <Link
                     to={`/runs/${run._id}`}
-                    className="flex-1 space-y-2 min-w-0"
+                    className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-2 py-6 pr-14 transition-colors group-hover:bg-bone/[0.03] sm:grid-cols-[6rem_1fr_auto] sm:px-3 sm:pr-24"
                   >
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <div className="flex items-center gap-1.5 font-medium text-xs sm:text-sm text-[#E8E8E3] hover:text-orange-400 transition truncate">
-                        <GitBranch className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-                        <span className="truncate">
-                          {run.repository?.url || run.repoUrl}
-                        </span>
-                      </div>
-
-                      <span className="rounded-md border border-white/8 bg-[#0A0A0A] px-2 py-0.5 font-mono text-[11px] font-semibold text-[#A8A8A0] shrink-0">
-                        #{run.issue?.number || run.issueNumber}
+                    <span className="font-display text-3xl font-light text-ember tabular-nums sm:text-4xl">
+                      {run.issue?.number || run.issueNumber}
+                    </span>
+                    <span className="col-span-2 row-start-2 min-w-0 space-y-1.5 sm:col-span-1 sm:row-start-auto">
+                      <span className="block truncate text-[17px] text-bone">
+                        {run.issue?.title || "Untitled issue"}
                       </span>
-                    </div>
-
-                    {run.issue?.title && (
-                      <p className="text-xs text-[#737370] line-clamp-1">
-                        {run.issue.title}
-                      </p>
-                    )}
-
-                    <div className="flex items-center gap-4 text-[11px] text-[#525250] font-mono">
-                      <span className="flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" />
-                        {formatDate(run.createdAt)}
+                      <span className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-bone-3">
+                        <span className="truncate">{repo}</span>
+                        <span>{formatDate(run.createdAt)}</span>
+                        {run.pullRequest?.url && <span className="text-verdigris">PR #{run.pullRequest.number}</span>}
                       </span>
-                      {run.pullRequest?.url && (
-                        <span className="text-orange-400">
-                          PR #{run.pullRequest.number}
-                        </span>
-                      )}
-                    </div>
+                    </span>
+                    <StatusBadge status={run.status} />
                   </Link>
 
-                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                    <StatusBadge status={run.status} size="sm" />
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteTarget(run);
-                      }}
-                      className="rounded-lg p-2 text-[#525250] hover:text-red-400 hover:bg-red-500/10 transition"
-                      title="Delete run"
-                      aria-label="Delete run"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-
-                    <Link
-                      to={`/runs/${run._id}`}
-                      className="rounded-lg p-1.5 text-[#525250] group-hover:text-[#E8E8E3] transition"
-                      aria-label="View run details"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(run)}
+                    className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer rounded-md p-2 text-bone-4 transition hover:bg-madder/10 hover:text-madder sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                    aria-label={`Delete run for issue ${run.issue?.number || run.issueNumber}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <ArrowUpRight
+                    className="pointer-events-none absolute top-1/2 right-12 hidden h-4 w-4 -translate-y-1/2 text-bone-4 transition group-hover:text-bone sm:block"
+                    aria-hidden
+                  />
+                </li>
+              );
+            })}
+          </ul>
         )}
       </main>
 
-      {/* Delete Run Confirmation */}
       <ConfirmDialog
         isOpen={Boolean(deleteTarget)}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteRun}
-        title="Delete Execution Run?"
-        description={`Are you sure you want to delete the run for issue #${
+        title="Delete this run?"
+        description={`The run for issue #${
           deleteTarget?.issue?.number || deleteTarget?.issueNumber
-        }? This will remove its history and telemetry.`}
-        confirmText="Yes, Delete Run"
+        } and its telemetry will be removed for good.`}
+        confirmText="Delete run"
         variant="danger"
         loading={deleting}
       />

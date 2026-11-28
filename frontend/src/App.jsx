@@ -9,33 +9,23 @@ import ErrorBoundary from "./components/ErrorBoundary";
 function App() {
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-[#0A0A0A] text-[#E8E8E3] flex flex-col">
+      <div className="flex min-h-screen flex-col bg-ink text-bone">
         <Toaster
           position="top-right"
           toastOptions={{
             duration: 3500,
             style: {
-              background: "#171717",
-              color: "#E8E8E3",
-              border: "1px solid rgba(255, 255, 255, 0.08)",
+              background: "var(--color-ink-3)",
+              color: "var(--color-bone)",
+              border: "1px solid var(--color-rule-strong)",
               borderRadius: "12px",
-              boxShadow: "0 10px 30px -10px rgba(0, 0, 0, 0.7)",
+              boxShadow: "0 20px 40px -12px rgb(0 0 0 / 0.7)",
               fontSize: "13px",
               fontFamily: "var(--font-sans)",
               padding: "10px 14px",
             },
-            success: {
-              iconTheme: {
-                primary: "#F97316",
-                secondary: "#171717",
-              },
-            },
-            error: {
-              iconTheme: {
-                primary: "#EF4444",
-                secondary: "#171717",
-              },
-            },
+            success: { iconTheme: { primary: "var(--color-ember)", secondary: "var(--color-ink)" } },
+            error: { iconTheme: { primary: "var(--color-madder)", secondary: "var(--color-ink)" } },
           }}
         />
         <BrowserRouter>

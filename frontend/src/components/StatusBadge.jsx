@@ -1,73 +1,35 @@
-import {
-  CheckCircle2,
-  Clock,
-  Loader2,
-  XCircle,
-  AlertTriangle,
-  Send,
-  UserCheck,
-} from "lucide-react";
-
 const STATUS_CONFIG = {
-  queued: {
-    label: "Queued",
-    icon: Clock,
-    classes: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  },
-  running: {
-    label: "Running",
-    icon: Loader2,
-    classes: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-    animate: true,
-  },
-  awaiting_approval: {
-    label: "Awaiting Review",
-    icon: UserCheck,
-    classes: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  },
-  publishing: {
-    label: "Publishing",
-    icon: Send,
-    classes: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-    animate: true,
-  },
-  completed: {
-    label: "Completed",
-    icon: CheckCircle2,
-    classes: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  },
-  failed: {
-    label: "Failed",
-    icon: XCircle,
-    classes: "bg-red-500/10 text-red-400 border-red-500/20",
-  },
-  rejected: {
-    label: "Rejected",
-    icon: AlertTriangle,
-    classes: "bg-red-500/10 text-red-300 border-red-500/15",
-  },
+  queued: { label: "Queued", tone: "text-saffron", dot: "bg-saffron" },
+  running: { label: "Running", tone: "text-ember", dot: "bg-ember", live: true },
+  awaiting_approval: { label: "Needs review", tone: "text-saffron", dot: "bg-saffron" },
+  publishing: { label: "Publishing", tone: "text-ember", dot: "bg-ember", live: true },
+  completed: { label: "Completed", tone: "text-verdigris", dot: "bg-verdigris" },
+  failed: { label: "Failed", tone: "text-madder", dot: "bg-madder" },
+  rejected: { label: "Rejected", tone: "text-madder", dot: "bg-madder" },
 };
 
 const StatusBadge = ({ status, size = "sm" }) => {
-  const config = STATUS_CONFIG[status] || {
+  const config = STATUS_CONFIG[status] ?? {
     label: status || "Unknown",
-    icon: Clock,
-    classes: "bg-white/5 text-[#737370] border-white/8",
+    tone: "text-bone-3",
+    dot: "bg-bone-3",
   };
-
-  const Icon = config.icon;
-  const sizeClasses =
-    size === "xs" ? "px-1.5 py-0.5 text-[10px] gap-1" : "px-2 py-0.5 text-[11px] gap-1.5";
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border font-medium ${config.classes} ${sizeClasses}`}
+      className={`inline-flex items-center gap-2 font-mono font-medium tracking-[0.1em] uppercase ${config.tone} ${
+        size === "xs" ? "text-[10px]" : "text-[11px]"
+      }`}
     >
-      <Icon
-        className={`${size === "xs" ? "h-2.5 w-2.5" : "h-3 w-3"} ${
-          config.animate ? "animate-spin" : ""
-        }`}
-      />
+      <span className="relative flex h-1.5 w-1.5">
+        {config.live && (
+          <span
+            className={`absolute inset-0 rounded-full ${config.dot}`}
+            style={{ animation: "pulse-ring 1.8s ease-out infinite" }}
+          />
+        )}
+        <span className={`relative h-1.5 w-1.5 rounded-full ${config.dot}`} />
+      </span>
       {config.label}
     </span>
   );
